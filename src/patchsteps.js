@@ -11,7 +11,7 @@ import * as utils from "./patchsteps-utils.js";
 import * as patcher from "./patchsteps-patch.js";
 import * as differ from "./patchsteps-diff.js";
 
-export const version = "1.1.2";
+export const version = "1.1.3";
 
 export const photomerge = utils.photomerge;
 export const photocopy = utils.photocopy;
