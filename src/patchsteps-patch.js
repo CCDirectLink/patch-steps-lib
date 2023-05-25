@@ -203,6 +203,48 @@ export class DebugState {
 	}
 }
 
+class StepMachine {
+	constructor(steps) {
+		this.steps = steps;
+		this.si = 0;
+	}
+
+	function* run() {
+		while (this.sp < this.steps.length) {
+			yield [this.si, this.steps[this.si]];
+			this.si++;
+		}
+	}
+
+	function setStepIndex(newStepIndex) {
+		if(newStepIndex < 0 || this.steps.length <= newStepIndex) {
+			return false;
+		}
+		this.si = newStepIndex;
+		return true;
+	}
+
+	function getStepIndex() {
+		return this.si;
+	}
+	
+	function findLabelIndex(labelName) {
+		let stepIndex = -1;
+
+		for(const [index, step] of this.steps.entries())  {
+			if (step.type !== "LABEL") {
+				continue;
+			}
+			if (step.name == labelName) {
+				stepIndex = index;
+				break;
+			}
+		}
+
+		return stepIndex;
+	}
+}
+
 // Custom extensions are registered here.
 // Their 'this' is the Step, they are passed the state, and they are expected to return a Promise.
 // In practice this is done with async old-style functions.
@@ -246,15 +288,18 @@ export async function patch(a, steps, loader, debugState) {
 	const state = {
 		currentValue: a,
 		stack: [],
+		stepMachine: new StepMachine(steps),
 		cloneMap: new Map(),
 		loader: loader,
 		debugState: debugState,
-		debug: false
+		debug: false,
+		memory: {}
 	};
-	for (let index = 0; index < steps.length; index++) {
+
+	for (const [stepIndex, step] of state.stepMachine.run()) {
 		try {
-			debugState.addStep(index);
-			await applyStep(steps[index], state, debugState);
+			debugState.addStep(stepIndex);
+			await applyStep(step, state, debugState);
 			debugState.removeLastStep();
 		} catch(e) {
 			debugState.print();
@@ -536,4 +581,16 @@ appliers["INIT_KEY"] = async function (state) {
 appliers["DEBUG"] = async function (state) {
 	state.debug = !!this["value"];
 };
+
+// combine the values of an object/array with another object/array. similar to non-patchstep patching.
+appliers["MERGE_CONTENT"] = async function (state) {
+	if (!("content" in this)) {
+		state.debugState.throwError("ValueError", 'content must be set');
+	}
+
+	photomerge(state.currentValue, this["content"]);
+}
+
+// Is a NOP step used to refer to code.
+appliers["LABEL"] = async function(state) {}
 
