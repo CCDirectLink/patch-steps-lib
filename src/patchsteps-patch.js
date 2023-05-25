@@ -209,14 +209,14 @@ class StepMachine {
 		this.si = 0;
 	}
 
-	function* run() {
-		while (this.sp < this.steps.length) {
+	* run() {
+		while (this.si < this.steps.length) {
 			yield [this.si, this.steps[this.si]];
 			this.si++;
 		}
 	}
 
-	function setStepIndex(newStepIndex) {
+	setStepIndex(newStepIndex) {
 		if(newStepIndex < 0 || this.steps.length <= newStepIndex) {
 			return false;
 		}
@@ -224,11 +224,11 @@ class StepMachine {
 		return true;
 	}
 
-	function getStepIndex() {
+	getStepIndex() {
 		return this.si;
 	}
 	
-	function findLabelIndex(labelName) {
+	findLabelIndex(labelName) {
 		let stepIndex = -1;
 
 		for(const [index, step] of this.steps.entries())  {
