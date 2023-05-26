@@ -207,13 +207,21 @@ class StepMachine {
 	constructor(steps) {
 		this.steps = steps;
 		this.si = 0;
+		this.finished = false;
 	}
 
 	* run() {
 		while (this.si < this.steps.length) {
 			yield [this.si, this.steps[this.si]];
+			if (this.finished) {
+				break;
+			}
 			this.si++;
 		}
+	}
+
+	exit() {
+		this.finished = true;
 	}
 
 	setStepIndex(newStepIndex) {
@@ -336,8 +344,7 @@ export async function patch(a, steps, loader, debugState) {
 async function applyStep(step, state) {
 	await state.debugState.beforeStep();
 	if (callables.has(step["type"])) {
-		// Let users create call it like a native patchstep
-		// Could 
+		// Let users call it like a native patchstep
 		let callableId = step["type"];
 		let callableStep = photocopy(step);
 		delete callableStep["type"];
