@@ -76,7 +76,7 @@ callable.register("IF", async function(state, args) {
 	const sm = state.stepMachine;
 	const memory = state.memory;
 	if (!args["label"]) {
-		args["label"] = "IF_" + Date.now();
+		args["label"] = "IF_" + Math.round(Math.random() * 1e6);
 		sm.getCurrentStep()["label"] = args["label"];
 	}
 
@@ -121,6 +121,12 @@ callable.register("PRINT", async function(state, args) {
 	console.log(args["data"]);
 });
 
+callable.register("PRINT_STEPS", async function(state, args) {
+	console.log(state.stepMachine.steps);
+});
+
+
+
 callable.register("EXIT", async function(state) {
 	const sm = state.stepMachine;
 	sm.exit();
@@ -160,8 +166,7 @@ callable.register("EXIT", async function(state) {
 			"data": "Will not be called"
 		}]
 	}, {
-		"type": "PRINT",
-		"data": "Outside function",
+		"type": "PRINT_STEPS",
 	}];
 	await patch({}, steps, async () => {});
 })()
