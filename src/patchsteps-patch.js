@@ -232,10 +232,10 @@ class StepMachine {
 		let stepIndex = -1;
 
 		for(const [index, step] of this.steps.entries())  {
-			if (step.type !== "LABEL") {
+			if (step["type"] !== "LABEL") {
 				continue;
 			}
-			if (step.name == labelName) {
+			if (step["name"] == labelName) {
 				stepIndex = index;
 				break;
 			}
@@ -244,6 +244,27 @@ class StepMachine {
 		return stepIndex;
 	}
 }
+/**
+ * @typedef State
+ * @property {unknown} currentValue
+ * @property {unknown[]} stack
+ * @property {(fromGame: boolean| string, path: string) => Promise<any>}
+ * @property {DebugState} debugState
+ * @property {boolean} debug
+ * /
+
+/**
+ * A user defined step that is distinguishable from builtin PatchSteps.
+ * Errors that occur in callables are not handled by the PatchSteps interpreter.
+ *
+ * @async 
+ * @callback Callable
+ * @param {State} state is the internal PatchStep state.
+ * @param {unknown} args is the user supplied arguments.
+ */
+
+/* @type {Map<string,Callable>} */
+export const callables = new Map;
 
 // Custom extensions are registered here.
 // Their 'this' is the Step, they are passed the state, and they are expected to return a Promise.
@@ -311,14 +332,31 @@ export async function patch(a, steps, loader, debugState) {
 	}
 }
 
+
 async function applyStep(step, state) {
 	await state.debugState.beforeStep();
-	state.debugState.getLastStep().name = step["type"];
-	if (!appliers[step["type"]]) {
-		state.debugState.getLastStep().name = '';
-		state.debugState.throwError('TypeError',`${step['type']} is not a valid type.`);
+	if (callables.has(step["type"])) {
+		// Let users create call it like a native patchstep
+		// Could 
+		let callableId = step["type"];
+		let callableStep = photocopy(step);
+		delete callableStep["type"];
+		step = {
+			"type": "CALL",
+			"id": callableId,
+			"args" : callableStep,
+		}
+		state.debugState.getLastStep().name = callableId;
+		// Prevent user from breaking everything by creating a "CALL" callable
+		await appliers["CALL"].call(step, state);
+	} else {
+		state.debugState.getLastStep().name = step["type"];
+		if (!appliers[step["type"]]) {
+			state.debugState.getLastStep().name = '';
+			state.debugState.throwError('TypeError',`${step['type']} is not a valid type.`);
+		}
+		await appliers[step["type"]].call(step, state);
 	}
-	await appliers[step["type"]].call(step, state);
 	await state.debugState.afterStep();
 }
 
