@@ -13,7 +13,7 @@
  */
 
 import {photocopy, photomerge} from "./patchsteps-utils.js";
-
+import {StepMachine} from "./patchsteps-stepmachine.js";
 // The following are definitions used for reference in DebugState.
 /*
  * ParsedPath is actually any type that translateParsedPath can understand.
@@ -89,16 +89,16 @@ export class DebugState {
 		this.currentFile = this.fileStack[this.fileStack.length - 1];
 		return lastFile;
 	}
-	
 	/**
 	 * Enters a step. Note that calls to this *surround* applyStep as the index is not available to it.
 	 * @final
 	 */
-	addStep(index, name = "") {
+	addStep(index, name = "", functionName = "") {
 		this.currentFile.stack.push({
 			type: "Step",
 			index,
-			name
+			name,
+			functionName
 		});
 	}
 
@@ -164,10 +164,15 @@ export class DebugState {
 					break;
 				case 'Step':
 					message += '\t\t\tat ';
+
 					if (step.name) {
 						message += `${step.name} `;
 					}
-					message += `(step: ${step.index})\n`;
+					if (step.functionName) {
+						message += `(step ${step.functionName}:${step.index})\n`;
+					} else {
+						message += `(step ${step.index})\n`;
+					}
 					break;
 				default:
 					break;
@@ -203,55 +208,6 @@ export class DebugState {
 	}
 }
 
-class StepMachine {
-	constructor(steps) {
-		this.steps = steps;
-		this.si = 0;
-		this.finished = false;
-	}
-
-	* run() {
-		while (this.si < this.steps.length) {
-			yield [this.si, this.steps[this.si]];
-			if (this.finished) {
-				break;
-			}
-			this.si++;
-		}
-	}
-
-	exit() {
-		this.finished = true;
-	}
-
-	setStepIndex(newStepIndex) {
-		if(newStepIndex < 0 || this.steps.length <= newStepIndex) {
-			return false;
-		}
-		this.si = newStepIndex;
-		return true;
-	}
-
-	getStepIndex() {
-		return this.si;
-	}
-	
-	findLabelIndex(labelName) {
-		let stepIndex = -1;
-
-		for(const [index, step] of this.steps.entries())  {
-			if (step["type"] !== "LABEL") {
-				continue;
-			}
-			if (step["name"] == labelName) {
-				stepIndex = index;
-				break;
-			}
-		}
-
-		return stepIndex;
-	}
-}
 /**
  * @typedef State
  * @property {unknown} currentValue
@@ -322,12 +278,15 @@ export async function patch(a, steps, loader, debugState) {
 		loader: loader,
 		debugState: debugState,
 		debug: false,
-		memory: {}
+		memory: {}, 
+		functionName: "",		
+		stepReferenceIndex: 0,
 	};
 
-	for (const [stepIndex, step] of state.stepMachine.run()) {
+	for (const [absoluteStepIndex, step] of state.stepMachine.run()) {
 		try {
-			debugState.addStep(stepIndex);
+			const stepIndex = absoluteStepIndex - state.stepReferenceIndex;
+			debugState.addStep(stepIndex, "", state.functionName);
 			await applyStep(step, state, debugState);
 			debugState.removeLastStep();
 		} catch(e) {

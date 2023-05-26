@@ -8,8 +8,8 @@
   "main": "cjs/patchsteps.js",
   "scripts": {
     "prepare": "npm run build",
-    "build": "babel src/patchsteps.js src/patchsteps-utils.js src/patchsteps-diff.js src/patchsteps-patch.js src/patchsteps-tool.js --plugins @babel/plugin-transform-modules-commonjs -d cjs",
-    "test": "npm run build && node ./cjs/patchsteps-tool.js post"
+    "build": "babel src/patchsteps.js src/patchsteps-utils.js src/patchsteps-diff.js src/patchsteps-patch.js src/patchsteps-callable.js src/patchsteps-stepmachine.js src/patchsteps-tests.js src/patchsteps-tool.js --plugins @babel/plugin-transform-modules-commonjs -d cjs",
+    "test": "npm run build && node ./cjs/patchsteps-tool.js post && node ./cjs/patchsteps-tests.js"
   },
   "bin": {
     "patchsteps-tool": "./cjs/patchsteps-tool.js"
