@@ -101,8 +101,8 @@ callable.register("IF", async function(state, args) {
 			"type": "RETURN",
 		});
 		sm.addSteps(newSteps);
+		ifIndex = sm.findLabelIndex(args["label"]);
 	}
-	ifIndex = sm.findLabelIndex(args["label"]);
 
 	if (args["cond"]) {
 		memory.callstack = memory.callstack || [];
