@@ -1,4 +1,4 @@
-export const TOKEN_TYPES = [{
+export const TOKEN_OPERATORS = [{
         "precedence": 18,
         "type": "(",
         "match": "("
@@ -148,3 +148,38 @@ export const TOKEN_TYPES = [{
         "match": ","
     }
 ].sort((e, a) => a.type.length - e.type.length);
+
+export const TOKEN_LITERALS = [{
+	type: "HEXIDECIMAL",
+	literal: true,
+	match: /^0x[\w]+/
+}, {
+	type: "OCTAL",
+	literal: true,
+	match: /^0o[\d_]+/
+}, {
+	type: "BINARY",
+	literal: true,
+	match: /^0b[\d_]+/
+}, {
+	type: "DECIMAL",
+	literal: true,
+	match: /^\d+\.?\d{0,}/
+}, {
+	type: "BOOL",
+	literal: true,
+	match: /^true|^false/
+}]; 
+export const TOKEN_IDENTIFIER = {
+	type: "IDENTIFIER",
+	match: /^[a-zA-Z][a-zA-Z0-9]{0,}/
+};
+
+export const TOKEN_NOOP = {
+	type: "NOOP",
+};
+
+export const TOKEN_TYPES = TOKEN_OPERATORS
+							.concat(TOKEN_LITERALS,
+									[TOKEN_IDENTIFIER, TOKEN_NOOP]);
+

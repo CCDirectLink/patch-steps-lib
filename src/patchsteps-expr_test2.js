@@ -1,5 +1,8 @@
 //const assert = eval("require('node:assert').strict");
-import {doShuntingYard, evaluateExpression, OPERATORS} from './patchsteps-exprevaluator.js';
+import {shuntingYard} from './patchsteps-expr_shunting.js';
+import {TOKEN_OPERATORS} from './patchsteps-expr_tokens.js';
+import {evaluateExpression} from './patchsteps-expr_evaluator.js';
+
 class assert {
 	static deepEqual(actual, expected, message = "Assertion failed") {
 		if (actual != expected) {
@@ -7,6 +10,7 @@ class assert {
 		}
 	}
 }
+
 const functions = {
 	',' : function(a,b) {
 		if (Array.isArray(a)) {
@@ -49,7 +53,7 @@ function t(input, expected) {
 	assert.deepEqual(result, expected);
 }
 function generateTest(operatorCount = 20) {
-	const operators = OPERATORS;
+	const operators = TOKEN_OPERATORS.map(e => e.match);
 	let ops = [];
 	for(let i = 0; i < operatorCount;i++) {
 		let operator;
@@ -75,6 +79,9 @@ function generateTest(operatorCount = 20) {
 	}
 }
 
-for(let i = 0; i < 100; i++) {
-	generateTest();
-}
+t("abc[0]", 5)
+t("abc[1]", 10)
+t("def()", 1)
+t("abc[def()]", 10)
+t("true||false", true)
+t("true&&false", false)

@@ -1,5 +1,4 @@
 #!/usr/bin/node
-
 import {callable, patch} from "./patchsteps.js";
 callable.register("CALL", async function(state, args) {
 	const sm = state.stepMachine;
