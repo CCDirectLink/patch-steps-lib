@@ -50,7 +50,7 @@ export class Tokenizer {
 				}
 			}
 		}
-		return Object.assign({index: this.index}, INVALID_TOKEN);
+		return Object.assign({index: this.index}, TOKEN_INVALID);
 	}
 
 	peek() {

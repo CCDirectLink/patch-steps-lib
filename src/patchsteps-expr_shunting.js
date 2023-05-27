@@ -1,4 +1,4 @@
-import {TOKEN_NOOP, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
+import {TOKEN_NOOP, TOKEN_DECIMAL, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
 
 
 export function shuntingYard(tokens) {
@@ -34,8 +34,13 @@ export function shuntingYard(tokens) {
 			const lastOperator = operators[operators.length - 1];
 			if (lastOperator && lastOperator.type == "IDENTIFIER") {
 				const callType = token.type == ")" ? "call" : "index";
-				if (callType == "call" && pushedOps == 0) {
-					output.push(TOKEN_NOOP);
+				if (pushedOps == 0) {
+					if (callType == "call") {
+						output.push(TOKEN_NOOP);
+					} else {
+						const zeroToken = Object.assign({value: "0"}, TOKEN_DECIMAL);
+						output.push(zeroToken);
+					}
 				}
 				const operator = Object.assign({}, operators.pop());
 				if (callType == "call") {
