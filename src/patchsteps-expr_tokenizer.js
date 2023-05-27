@@ -1,4 +1,4 @@
-import {TOKEN_TYPES} from './patchsteps-expr_tokens.js';
+import {TOKEN_TYPES, TOKEN_INVALID} from './patchsteps-expr_tokens.js';
 
 export class Tokenizer {
 	constructor(input) {
@@ -29,6 +29,7 @@ export class Tokenizer {
 		if (this.index == this.inputLength) {
 			return {type: "EOF"};
 		}
+
 		const input = this.getInput();
 		for(const tokenType of TOKEN_TYPES) {
 			const value = tokenType.match;
@@ -49,6 +50,7 @@ export class Tokenizer {
 				}
 			}
 		}
+		return Object.assign({index: this.index}, INVALID_TOKEN);
 	}
 
 	peek() {

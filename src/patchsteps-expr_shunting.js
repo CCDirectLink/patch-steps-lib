@@ -1,28 +1,5 @@
-import {TOKEN_NOOP} from './patchsteps-expr_tokens.js';
+import {TOKEN_NOOP, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
 
-function isOpenToken(tokenChar) {
-	return tokenChar == '(' || tokenChar == '[';
-}
-
-function isClosedToken(tokenChar) {
-	return tokenChar == ')' || tokenChar == ']'; 
-}
-
-function closedMatch(openTokenChar) {
-	if (openTokenChar == '(') 
-		return ')';
-	if (openTokenChar == '[')
-		return ']';
-	return '';
-}
-
-function openedMatch(closeTokenChar) {
-	if (closeTokenChar == ')') 
-		return '(';
-	if (closeTokenChar == ']')
-		return '[';
-	return '';
-}
 
 export function shuntingYard(tokens) {
 	const output  = [];
@@ -43,11 +20,11 @@ export function shuntingYard(tokens) {
 			output.push(token);
 		} else if (isOpenToken(token.type)) {
 			operators.push(token);
-		} else if (isClosedToken(token.type)) {
+		} else if (isCloseToken(token.type)) {
 			let pushedOps = 0;
 			while (operators.length) {
 				let operator = operators.pop();
-				if (operator.type == openedMatch(token.type)) {
+				if (operator.type == openTokenMatch(token.type)) {
 					break;
 				}
 				output.push(operator);

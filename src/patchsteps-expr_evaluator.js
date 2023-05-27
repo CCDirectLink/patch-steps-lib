@@ -1,4 +1,5 @@
 import {Tokenizer} from './patchsteps-expr_tokenizer.js';
+import {PrettyError} from './patchsteps-expr_errors.js';
 import {shuntingYard} from './patchsteps-expr_shunting.js';
 import {TOKEN_NOOP} from './patchsteps-expr_tokens.js';
 
@@ -16,16 +17,11 @@ function doShuntingYard(input, verbose = false) {
 	return shuntingYard(tokens);
 }
 
-
+const PREVIEW_ERROR_LENGTH = 19;
 export function evaluateExpression(input, functions = {}, variables = {}) {
 	const tokenStream = doShuntingYard(input);
 	const output = [];	
 	for (const token of tokenStream) {
-		if (token == null) {
-			console.log("Null token!");
-			console.log(tokenStream);
-			return null;
-		}
 		if (token.literal) {
 			if (token.type == "BOOL") {
 				output.push(token.value == "true")
@@ -38,7 +34,8 @@ export function evaluateExpression(input, functions = {}, variables = {}) {
 			const identifier = token.value;
 			const func = functions[identifier];
 			if (!func) {
-				throw Error(identifier + " is not a function.")
+				const message = identifier + " is not a function." ;
+				PrettyError.throwError(input, token.index, PREVIEW_ERROR_LENGTH, message);
 			}
 			// Only pop the last value becase
 			const args = output.pop();
@@ -55,12 +52,14 @@ export function evaluateExpression(input, functions = {}, variables = {}) {
 			const identifier = token.value;
 			const variable = variables[identifier];
 			if (!variable) {
-				throw Error("Variable " + identifier + " is undefined.")
+				const message = "Variable " + identifier + " is undefined.";
+				PrettyError.throwError(input, token.index, PREVIEW_ERROR_LENGTH, message);
 			}
 			if (Array.isArray(variable) || typeof variable === "object") {
 				output.push(variable[index]);
 			} else {
-				throw Error("Variable " + identifier + " can not be indexed.")
+				const message = "Variable " + identifier + " can not be indexed.";
+				PrettyError.throwError(input, token.index, PREVIEW_ERROR_LENGTH, message);
 			}
 		} else if(token.type == "IDENTIFIER") {
 			let identifier = token.value;
@@ -74,12 +73,8 @@ export function evaluateExpression(input, functions = {}, variables = {}) {
 			const id = token.value;
 			const func = functions[id];
 			if (!func) {
-				throw Error("Binary operator " + id + " not implemented.");
-			}
-			if (secondArg == null) {
-				throw Error("Second arg null");
-			} else if (firstArg == null) {
-				throw Error("First arg null");
+				const message = "Binary operator " + id + " not implemented.";
+				PrettyError.throwError(input, token.index, PREVIEW_ERROR_LENGTH, message);
 			}
 			output.push(func(firstArg, secondArg));
 		}

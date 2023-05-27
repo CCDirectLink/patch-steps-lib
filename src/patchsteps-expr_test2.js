@@ -70,11 +70,6 @@ function generateTest(operatorCount = 20) {
 	try {
 		t(input, eval(input))
 	} catch(e) {
-		console.log(input);
-		console.log("postfix:",doShuntingYard(input).map(e => e.value))
-		if (e.message.indexOf("Assert") > -1) {
-			console.log(input, "did not match javascript");
-		}
 		console.log(e.message);
 	}
 }

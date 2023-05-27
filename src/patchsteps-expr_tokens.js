@@ -179,7 +179,35 @@ export const TOKEN_NOOP = {
 	type: "NOOP",
 };
 
+export const TOKEN_INVALID = {
+	type: "INVALID"
+};
+
 export const TOKEN_TYPES = TOKEN_OPERATORS
 							.concat(TOKEN_LITERALS,
 									[TOKEN_IDENTIFIER, TOKEN_NOOP]);
+
+export function isOpenToken(tokenChar) {
+	return tokenChar == '(' || tokenChar == '[';
+}
+
+export function isCloseToken(tokenChar) {
+	return tokenChar == ')' || tokenChar == ']'; 
+}
+
+export function closeTokenMatch(openTokenChar) {
+	if (openTokenChar == '(') 
+		return ')';
+	if (openTokenChar == '[')
+		return ']';
+	return '';
+}
+
+export function openTokenMatch(closeTokenChar) {
+	if (closeTokenChar == ')') 
+		return '(';
+	if (closeTokenChar == ']')
+		return '[';
+	return '';
+}
 
