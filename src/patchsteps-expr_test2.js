@@ -20,6 +20,9 @@ const variables = {
 	'def': function() {
 		return 1;
 	},
+	'mod': function() {
+		return "loaded";
+	},
 };
 
 function t(input, expected) {
@@ -58,4 +61,8 @@ t("def()", 1)
 t("abc[def()]", 10)
 t("true||false", true)
 t("true&&false", false)
-
+// Test short-circuiting
+t("true||undefinedVariable", true)
+t("false&&undefinedVariable", false)
+t('mod() == "loaded"', true)
+t("mod() == 'loaded'", true)
