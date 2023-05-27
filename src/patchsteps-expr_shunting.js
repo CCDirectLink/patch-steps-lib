@@ -1,4 +1,4 @@
-import {TOKEN_NOOP, TOKEN_DECIMAL, TOKEN_GETTER, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
+import {TOKEN_NOOP, TOKEN_DECIMAL, TOKEN_GETTER, TOKEN_INVALID, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
 
 export function shuntingYard(tokens) {
 	const output  = [];
@@ -39,16 +39,18 @@ export function shuntingYard(tokens) {
 			let oldOutLen = changeTracker.pop();
 			let deltaOutput = output.length - oldOutLen;
 
-
-
-			if (deltaOutput == 0) {
-				// Has to be before since it's a function call or expression
-				if (token.type == ")") {
+			const lastOperator = operators[operators.length - 1];
+			if (deltaOutput == 0 && token.type == ")") {
+				if (!lastOperator || lastOperator.type != "IDENTIFIER") {
+					// Can't be empty so ) is invalid
+					const invalidToken = Object.assign({index: token.index, value: token.value}, TOKEN_INVALID);
+					output.push(invalidToken);
+				} else {
+					// Has to be before since it's a function call
 					output.push(TOKEN_NOOP);
 				}
 			}
 
-			const lastOperator = operators[operators.length - 1];
 			if (lastOperator && lastOperator.type == "IDENTIFIER") {
 				const callType = token.type == ")" ? "call" : "index";
 				const operator = Object.assign({}, operators.pop());
@@ -69,7 +71,7 @@ export function shuntingYard(tokens) {
 			if (deltaOutput == 0) {
 				// Has to be after since since it's argument 2 of getter
 				if (token.type == "]") {
-					const zeroToken = Object.assign({value: 0}, TOKEN_DECIMAL);
+					const zeroToken = Object.assign({index: openOperator.index, value: 0}, TOKEN_DECIMAL);
 					output.push(zeroToken);
 				}
 			}

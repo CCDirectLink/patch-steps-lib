@@ -91,7 +91,9 @@ export function checkForInvalidOpsSyntax(input) {
 
 	for (let i = 0; i < postfixExpr.length; i++) {
 		const token = postfixExpr[i];
-
+		if (token.type == "INVALID") {
+			PrettyError.throwError(input, token.index, 19, "Unexpected token");
+		}
 		if (!isNaN(token.precedence)) {
 			stackCount -= 2;
 			if (stackCount < 0) {

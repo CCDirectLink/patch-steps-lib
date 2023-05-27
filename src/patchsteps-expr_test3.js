@@ -53,7 +53,7 @@ it('"abc"');
 it('"abc', true);
 
 // InvalidOpsSyntax
-io("()");
+io("()",true);
 io("abc()");
 io("abc[]");// same as abc[0]
 io("abc[][]"); // same as abc[0][0]
