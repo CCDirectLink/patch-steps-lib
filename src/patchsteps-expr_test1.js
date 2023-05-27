@@ -1,5 +1,7 @@
 #!/usr/bin/node
 import {callable, patch} from "./patchsteps.js";
+import {compileExpression} from "./patchsteps-expr_compiler.js";
+import {evaluateExpression} from "./patchsteps-expr_evaluator.js";
 callable.register("CALL", async function(state, args) {
 	const sm = state.stepMachine;
 	const memory = state.memory;
@@ -101,8 +103,9 @@ callable.register("IF", async function(state, args) {
 		sm.addSteps(newSteps);
 		ifIndex = sm.findLabelIndex(args["label"]);
 	}
-
-	if (args["cond"]) {
+	const compiledExpression = compileExpression(args["cond"] || "true");
+	const condResult = evaluateExpression(compiledExpression);
+	if (!!condResult) {
 		memory.callstack = memory.callstack || [];
 		memory.callstack.push({
 			returnIndex: sm.getStepIndex(),
@@ -151,14 +154,14 @@ callable.register("EXIT", async function(state) {
 		"name": "MyFunction"
 	}, {
 		"type": "IF",
-		"cond": true,
+		"cond": "2 == 2",
 		"thenSteps" : [{
 			"type": "PRINT",
 			"data": "Only called if true"
 		}]
 	}, {
 		"type": "IF",
-		"cond": false,
+		"cond": "1 == 2",
 		"thenSteps" : [{
 			"type": "PRINT",
 			"data": "Will not be called"
