@@ -1,7 +1,8 @@
 import {
 	checkForUnbalancedPairedToken,
 	checkForInvalidTokens,
-	checkForInvalidOpsSyntax
+	checkForInvalidOpsSyntax,
+	compileExpression,
 } from './patchsteps-expr_compiler.js';
 
 function ne(func, input) {
@@ -55,3 +56,7 @@ io("abc()");
 io("abc[]");// same as abc[0]
 io("2 +", true);
 io("2 ** 3 /", true);
+
+console.log(compileExpression("2 ** 3"))
+console.log(compileExpression("true|| false"))
+console.log(compileExpression("true&& false"))

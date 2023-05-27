@@ -2,7 +2,7 @@
 import {shuntingYard} from './patchsteps-expr_shunting.js';
 import {TOKEN_OPERATORS} from './patchsteps-expr_tokens.js';
 import {evaluateExpression} from './patchsteps-expr_evaluator.js';
-
+import {compileExpression} from './patchsteps-expr_compiler.js';
 class assert {
 	static deepEqual(actual, expected, message = "Assertion failed") {
 		if (actual != expected) {
@@ -11,44 +11,17 @@ class assert {
 	}
 }
 
-const functions = {
-	',' : function(a,b) {
-		if (Array.isArray(a)) {
-			return a.concat([b]);
-		}
-		return [a,b];
-	},
-	'+': (a,b) => a + b,
-	'*': (a,b) => a*b,
-	'/': (a,b) => a/b,
-	'-': (a,b) => a-b,
-	'<=': (a,b) => a<=b,
-	'>=': (a,b) => a>=b,
-	'>': (a,b) => a>b,
-	'<': (a,b) => a<b,
-	'%': (a,b) => a%b,
-	'&': (a,b) => a&b,
-	'|': (a,b) => a|b,
-	'^': (a,b) => a^b,
-	'||': (a,b) => a||b,
-	'&&': (a,b) => a&&b,
-	'**': (a,b) => a**b,
-	"==": (a,b) => a==b,
-	"!=": (a,b) => a!=b,
-	'<<': (a,b) => a<<b,
-	'>>': (a,b) => a>>b,
-	'>>>': (a,b) => a>>>b,
-	'def': function(a,b) {
-		return 1;
-	}
-};
 const variables = {
 	'abc': [5,10],
-	'owo': 20
+	'owo': 20,
+	'def': function() {
+		return 1;
+	},
 };
 
 function t(input, expected) {
-	let result = evaluateExpression(input, functions, variables) ;
+	let expr = compileExpression(input);
+	let result = evaluateExpression(expr, variables);
 	console.log(input, "=", result);
 	assert.deepEqual(result, expected);
 }

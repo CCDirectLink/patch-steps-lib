@@ -45,7 +45,14 @@ export class Tokenizer {
 				if (match) {
 					const index = this.index;
 					this.index += match[0].length;
-					const newToken = Object.assign({index,value: match[0]}, tokenType);
+					let newToken = Object.assign({index}, tokenType);
+					if (newToken.type == "BOOL") {
+						newToken.value = match[0] == "true";
+					} else if (newToken.literal) {
+						newToken.value = Number(match[0].replace(/_/g, ""));
+					} else {
+						newToken.value = match[0];
+					}
 					return newToken;
 				}
 			}

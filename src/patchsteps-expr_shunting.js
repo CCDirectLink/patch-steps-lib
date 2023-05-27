@@ -44,7 +44,7 @@ export function shuntingYard(tokens) {
 					if (callType == "call") {
 						output.push(TOKEN_NOOP);
 					} else {
-						const zeroToken = Object.assign({value: "0"}, TOKEN_DECIMAL);
+						const zeroToken = Object.assign({value: 0}, TOKEN_DECIMAL);
 						output.push(zeroToken);
 					}
 				}

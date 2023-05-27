@@ -97,12 +97,15 @@ export function checkForInvalidOpsSyntax(input) {
 				PrettyError.throwError(input, token.index, 19, "Invalid syntax for operation");
 			}
 		} else if (token.type == "FUNCTION" || token.type == "OBJECT") {
+			// Removes the last argument
 			stackCount--;
 			if (stackCount < 0) {
 				const nextTokenIndex = findMatchingTokenIndex(token, tokens) + 1;
 				const nextToken = tokens[nextTokenIndex];	
 				PrettyError.throwError(input, nextToken.index, 19, "Invalid syntax for operation");
 			}
+			// Then it pushes the result back onto the stack
+			stackCount++;
 		} else {
 			stackCount++;
 		}
@@ -111,12 +114,92 @@ export function checkForInvalidOpsSyntax(input) {
 
 export function checkExpressionSyntax(input) {
 	checkForInvalidTokens(input);
-	checkForUnbalancedPairTokens(input);
-	checkForInvalidSyntax(input);
+	checkForUnbalancedPairedToken(input);
+	checkForInvalidOpsSyntax(input);
+}
+
+// LITERAL[value=value]
+function createLiteral(value) {
+	return {
+		type: "LITERAL",
+		value,
+	};
+}
+// CALL[id=name, args=[]]
+function createCall(id, args) {
+	return {
+		type: "CALL",
+		id,
+		args,
+	};
+}
+// Accessor[id=name, index=index]
+function createAccessor(id, index) {
+	return {
+		type: "ACCESSOR",
+		id,
+		index,
+	};
+
+}
+function createIdentifier(id) {
+	return {
+		type: "IDENTIFIER",
+		id,
+	};
+}
+function createEmpty() {
+	return {
+		type: "EMPTY"
+	};
+}
+function createBinaryOp(op, leftNode, rightNode) {
+	return {
+		type: "BINARY_OP",
+		op,
+		left: leftNode,
+		right: rightNode,
+	};
 }
 
 export function compileExpression(input) {
 	checkExpressionSyntax(input);
-	const postfixExpr = doShuntingYard(input);
-
+	const tokenStream = doShuntingYard(input);
+	const output = [];	
+	for (const token of tokenStream) {
+		if (token.literal) {
+			output.push(createLiteral(token.value));
+		} else if (token.type === "FUNCTION") {
+			const identifier = token.value;
+			// Only pop the last value becase
+			const args = output.pop();
+			let callArgs;
+			if (Array.isArray(args)) {
+				callArgs = args;
+			} else if (args.type == "EMPTY") {
+				callArgs = [];
+			} else {
+				callArgs = [args];
+			}
+			output.push(createCall(identifier, callArgs));
+		} else if (token.type == "OBJECT") {
+			const id = token.value;
+			const index = output.pop();		
+			output.push(createAccessor(id, index));
+		} else if(token.type == "IDENTIFIER") {
+			const id = token.value;
+			output.push(createIdentifier(id));
+		} else if (token == TOKEN_NOOP) {
+			output.push(createEmpty());
+		} else {
+			// Assume binary operator
+			let secondArg = output.pop();
+			let firstArg = output.pop();
+			const op = token.value;
+			output.push(createBinaryOp(op,firstArg, secondArg));
+		}
+	}
+	// Should be the root node
+	return output.pop();
 }
+
