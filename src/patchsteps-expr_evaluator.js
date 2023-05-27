@@ -26,6 +26,9 @@ const builtins = {
 		}
 		return e(b);
 	},
+	'#': (a,b,e) => {
+		return e(a)[e(b)];
+	}, 
 	'**': (a,b,e) => e(a)**e(b),
 	"==": (a,b,e) => e(a)==e(b),
 	"!=": (a,b,e) => e(a)!=e(b),
@@ -83,7 +86,13 @@ export function evaluateExpression(node, variables = {}, cache = {}) {
 
 	if (node.type == "BINARY_OP") {
 		const e = cache["eval"];
-		return builtins[node.op](node.left, node.right, e);
+		const operator = builtins[node.op];
+		if (!operator) {
+			console.log(node);
+			throw Error(node.op + " is not implemented.");
+		}
+
+		return operator(node.left, node.right, e);
 	}
 	if (node.type == "CALL") {
 		const e = cache["eval"];

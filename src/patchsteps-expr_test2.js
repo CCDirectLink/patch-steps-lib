@@ -13,6 +13,9 @@ class assert {
 
 const variables = {
 	'abc': [5,10],
+	'cde': [
+		[4,5],
+	],
 	'owo': 20,
 	'def': function() {
 		return 1;
@@ -50,7 +53,9 @@ function generateTest(operatorCount = 20) {
 t("abc[]", 5)
 t("abc[0]", 5)
 t("abc[1]", 10)
+t("cde[][]", 4);
 t("def()", 1)
 t("abc[def()]", 10)
 t("true||false", true)
 t("true&&false", false)
+

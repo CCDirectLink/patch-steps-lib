@@ -54,6 +54,7 @@ it(".", true);
 io("()");
 io("abc()");
 io("abc[]");// same as abc[0]
+io("abc[][]"); // same as abc[0][0]
 io("2 +", true);
 io("2 ** 3 /", true);
 

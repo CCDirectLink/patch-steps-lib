@@ -91,12 +91,14 @@ export function checkForInvalidOpsSyntax(input) {
 
 	for (let i = 0; i < postfixExpr.length; i++) {
 		const token = postfixExpr[i];
+
 		if (!isNaN(token.precedence)) {
 			stackCount -= 2;
 			if (stackCount < 0) {
 				PrettyError.throwError(input, token.index, 19, "Invalid syntax for operation");
 			}
-		} else if (token.type == "FUNCTION" || token.type == "OBJECT") {
+			stackCount++;
+		} else if (token.type == "FUNCTION") {
 			// Removes the last argument
 			stackCount--;
 			if (stackCount < 0) {
@@ -182,10 +184,6 @@ export function compileExpression(input) {
 				callArgs = [args];
 			}
 			output.push(createCall(identifier, callArgs));
-		} else if (token.type == "OBJECT") {
-			const id = token.value;
-			const index = output.pop();		
-			output.push(createAccessor(id, index));
 		} else if(token.type == "IDENTIFIER") {
 			const id = token.value;
 			output.push(createIdentifier(id));

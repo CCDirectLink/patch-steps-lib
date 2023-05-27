@@ -1,5 +1,4 @@
-import {TOKEN_NOOP, TOKEN_DECIMAL, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
-
+import {TOKEN_NOOP, TOKEN_DECIMAL, TOKEN_GETTER, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
 
 export function shuntingYard(tokens) {
 	const output  = [];
@@ -26,37 +25,58 @@ export function shuntingYard(tokens) {
 			changeTracker.push(output.length);
 			operators.push(token);
 		} else if (isCloseToken(token.type)) {
+			let openOperator;
 			while (operators.length) {
 				let operator = operators.pop();
 				if (operator.type == openTokenMatch(token.type)) {
+					openOperator = operator;
 					break;
 				}
 				output.push(operator);
 			}
 
 			// Find how many tokens were in between the pairs
-			let deltaOutput = output.length - changeTracker.pop();
+			let oldOutLen = changeTracker.pop();
+			let deltaOutput = output.length - oldOutLen;
+
+
+
+			if (deltaOutput == 0) {
+				// Has to be before since it's a function call or expression
+				if (token.type == ")") {
+					output.push(TOKEN_NOOP);
+				}
+			}
 
 			const lastOperator = operators[operators.length - 1];
 			if (lastOperator && lastOperator.type == "IDENTIFIER") {
 				const callType = token.type == ")" ? "call" : "index";
-				if (deltaOutput == 0) {
-					if (callType == "call") {
-						output.push(TOKEN_NOOP);
-					} else {
-						const zeroToken = Object.assign({value: 0}, TOKEN_DECIMAL);
-						output.push(zeroToken);
-					}
-				}
 				const operator = Object.assign({}, operators.pop());
 				if (callType == "call") {
 					operator.type = "FUNCTION";
+					output.push(operator);
 				} else {
-					operator.type = "OBJECT";
+					if (deltaOutput == 0) {
+						output.push(operator);
+					} else {
+						// Has to be inserted before all the previous tokens
+						// since getter requires the object be the first argument
+						output.splice(oldOutLen, 0, operator);
+					}
 				}
-				output.push(operator);
 			}
 
+			if (deltaOutput == 0) {
+				// Has to be after since since it's argument 2 of getter
+				if (token.type == "]") {
+					const zeroToken = Object.assign({value: 0}, TOKEN_DECIMAL);
+					output.push(zeroToken);
+				}
+			}
+
+			if (token.type == "]") {
+				output.push(Object.assign({index: openOperator.index, value: "#"}, TOKEN_GETTER));
+			}
 		} else if (operators.length == 0) {
 			operators.push(token);
 		} else {

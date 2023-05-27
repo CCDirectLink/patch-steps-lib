@@ -1,3 +1,8 @@
+export const TOKEN_GETTER = {
+        "precedence": 17,
+        "type": "#",
+        "match": "#"
+};
 export const TOKEN_OPERATORS = [{
         "precedence": 18,
         "type": "(",
@@ -19,7 +24,7 @@ export const TOKEN_OPERATORS = [{
         "type": "]",
         "match": "]"
     },
-
+	TOKEN_GETTER,
     {
         "precedence": 13,
         "assocLeft": false,
