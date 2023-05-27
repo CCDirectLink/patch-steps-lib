@@ -75,9 +75,15 @@ callable.register("FUNCTION", async function(state, args) {
 callable.register("IF", async function(state, args) {
 	const sm = state.stepMachine;
 	const memory = state.memory;
+	if (isNaN(args["number"])) {
+		const randomNumber = Math.round(Math.random() * 1e6);
+		sm.getCurrentStep()["number"] = randomNumber;
+		args["number"] = sm.getCurrentStep()["number"];
+	}
+
 	if (!args["label"]) {
-		args["label"] = "IF_" + Math.round(Math.random() * 1e6);
-		sm.getCurrentStep()["label"] = args["label"];
+		sm.getCurrentStep()["label"] = "IF_" + args["number"];
+		args["label"] = sm.getCurrentStep()["label"];
 	}
 
 	const ifLabel = args["label"];
@@ -103,7 +109,19 @@ callable.register("IF", async function(state, args) {
 		sm.addSteps(newSteps);
 		ifIndex = sm.findLabelIndex(args["label"]);
 	}
-	const compiledExpression = compileExpression(args["cond"] || "true");
+	let compiledExpression;
+	const compiledExpressionName = "IF_EXPR_" + args["number"];
+
+	if (memory[compiledExpressionName] == null) {
+		console.log("Compiling expression for the first time.");
+		compiledExpression = compileExpression(args["cond"] || "true");
+		memory[compiledExpressionName] = compiledExpression;
+	} else {
+		console.log("Getting compiled expression from memory.");
+		compiledExpression = memory[compiledExpressionName];
+		sm.exit();	
+	}
+
 	const condResult = evaluateExpression(compiledExpression);
 	if (!!condResult) {
 		memory.callstack = memory.callstack || [];
@@ -153,6 +171,9 @@ callable.register("EXIT", async function(state) {
 		"type": "CALL",
 		"name": "MyFunction"
 	}, {
+		"type": "LABEL",
+		"name": "loop",
+	}, {
 		"type": "IF",
 		"cond": "2 == 2",
 		"thenSteps" : [{
@@ -160,6 +181,9 @@ callable.register("EXIT", async function(state) {
 			"data": "Only called if true"
 		}]
 	}, {
+		"type": "GOTO",
+		"name": "loop",
+	},{
 		"type": "IF",
 		"cond": "1 == 2",
 		"thenSteps" : [{
