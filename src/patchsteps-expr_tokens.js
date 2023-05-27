@@ -3,6 +3,7 @@ export const TOKEN_GETTER = {
         "type": "#",
         "match": "#"
 };
+
 export const TOKEN_OPERATORS = [{
         "precedence": 18,
         "type": "(",
@@ -153,6 +154,12 @@ export const TOKEN_OPERATORS = [{
         "match": ","
     }
 ].sort((e, a) => a.type.length - e.type.length);
+export const TOKEN_STRING = {
+	type: "STRING",
+	literal: true,
+	match: null, // Needs to be manually parsed
+};
+
 export const TOKEN_HEXIDECIMAL = {
 	type: "HEXIDECIMAL",
 	literal: true,
@@ -179,6 +186,7 @@ export const TOKEN_BOOL = {
 	match: /^true|^false/
 };
 export const TOKEN_LITERALS = [
+	TOKEN_STRING,
 	TOKEN_HEXIDECIMAL,
 	TOKEN_OCTAL,
 	TOKEN_BINARY,
@@ -198,6 +206,7 @@ export const TOKEN_NOOP = {
 export const TOKEN_INVALID = {
 	type: "INVALID"
 };
+
 
 export const TOKEN_TYPES = TOKEN_OPERATORS
 							.concat(TOKEN_LITERALS,

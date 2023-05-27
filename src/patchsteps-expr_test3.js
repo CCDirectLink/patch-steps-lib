@@ -49,6 +49,8 @@ pt("]", true);
 // InvalidTokenChecker
 it("()");
 it(".", true);
+it('"abc"');
+it('"abc', true);
 
 // InvalidOpsSyntax
 io("()");
