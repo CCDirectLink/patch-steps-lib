@@ -118,4 +118,5 @@ export function checkExpressionSyntax(input) {
 export function compileExpression(input) {
 	checkExpressionSyntax(input);
 	const postfixExpr = doShuntingYard(input);
+
 }

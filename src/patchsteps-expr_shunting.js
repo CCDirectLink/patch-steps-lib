@@ -4,6 +4,8 @@ import {TOKEN_NOOP, TOKEN_DECIMAL, isOpenToken, isCloseToken, openTokenMatch} fr
 export function shuntingYard(tokens) {
 	const output  = [];
 	const operators = [];
+	const changeTracker = [];
+
 	for(let i = 0; i < tokens.length; i++) {
 		const token = tokens[i];
 		if (token.type == "EOF") {
@@ -19,22 +21,26 @@ export function shuntingYard(tokens) {
 		} else if(token.literal == true) {
 			output.push(token);
 		} else if (isOpenToken(token.type)) {
+			// Save before the temporary token
+			// is added
+			changeTracker.push(output.length);
 			operators.push(token);
 		} else if (isCloseToken(token.type)) {
-			let pushedOps = 0;
 			while (operators.length) {
 				let operator = operators.pop();
 				if (operator.type == openTokenMatch(token.type)) {
 					break;
 				}
 				output.push(operator);
-				pushedOps++;
 			}
+
+			// Find how many tokens were in between the pairs
+			let deltaOutput = output.length - changeTracker.pop();
 
 			const lastOperator = operators[operators.length - 1];
 			if (lastOperator && lastOperator.type == "IDENTIFIER") {
 				const callType = token.type == ")" ? "call" : "index";
-				if (pushedOps == 0) {
+				if (deltaOutput == 0) {
 					if (callType == "call") {
 						output.push(TOKEN_NOOP);
 					} else {

@@ -74,6 +74,7 @@ function generateTest(operatorCount = 20) {
 	}
 }
 
+t("abc[]", 5)
 t("abc[0]", 5)
 t("abc[1]", 10)
 t("def()", 1)
