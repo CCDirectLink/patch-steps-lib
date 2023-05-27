@@ -53,6 +53,7 @@ it('"abc"');
 it('"abc', true);
 
 // InvalidOpsSyntax
+io("[]", true);
 io("()",true);
 io("abc()");
 io("abc[]");// same as abc[0]
