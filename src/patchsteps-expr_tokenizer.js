@@ -26,20 +26,28 @@ export class Tokenizer {
 	getStringLiteral() {
 		const input = this.getInput();
 		const startQuote = input[0];
+		let stringValue = "";
 		let foundEndQuote = false;
 		let start = 1;
 		let end = 1; 
 		for(let i = start; i < input.length; i++) {
 			const currChar = input[i];
-			const lastChar = input[i-1] || "";
-			if(currChar == startQuote && lastChar !== "\\") {
+			const lastChar = input[i-1];
+			// Ignore these
+			if (currChar == "\\") {
+				continue;
+			}
+
+			if (lastChar == "\\") {
+				stringValue += currChar;
+			} else if(currChar == startQuote) {
 				foundEndQuote = true;
 				// Do not include quote inside raw string
 				end = i;
 				break;
+			} else {
+				stringValue += currChar;
 			}
-			
-
 		}
 		const startIndex = this.index;
 		if (!foundEndQuote) {
@@ -47,9 +55,8 @@ export class Tokenizer {
 			return Object.assign({index: startIndex}, TOKEN_INVALID);
 		}
 		// Ignore the quote
-
 		this.index += end + 1;
-		return Object.assign({index: startIndex, value: input.substring(start, end)}, TOKEN_STRING);
+		return Object.assign({index: startIndex, value: stringValue}, TOKEN_STRING);
 	}
 
 	getToken() {

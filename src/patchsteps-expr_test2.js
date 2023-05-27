@@ -66,3 +66,4 @@ t("true||undefinedVariable", true)
 t("false&&undefinedVariable", false)
 t('mod() == "loaded"', true)
 t("mod() == 'loaded'", true)
+t("\"\\\"\" == '\"'", true);
