@@ -1,34 +1,34 @@
 {
-    "name": "@20kdc/patch-steps-lib",
-    "type": "commonjs",
-    "description": "'Patch Steps' library: Implements a 'program-like' JSON patching format.",
-    "homepage": "https://gitlab.com/20kdc/patch-steps-lib",
-    "version": "1.1.3",
-    "license": "CC0-1.0",
-    "main": "cjs/patchsteps.js",
-    "scripts": {
-        "prepare": "npm run build",
-        "build": "babel src/patchsteps-test2.js src/patchsteps-patch.js src/tests.json src/patchsteps-diff.js src/patchsteps-tests.js src/patchsteps-callable.js src/patchsteps-tokens.js src/patchsteps-utils.js src/patchsteps-tool.js src/patchsteps.js src/patchsteps-exprevaluator.js src/patchsteps-stepmachine.js --plugins @babel/plugin-transform-modules-commonjs -d cjs",
-        "test": "npm run build && node ./cjs/patchsteps-tool.js post && node ./cjs/patchsteps-tests.js"
-    },
-    "bin": {
-        "patchsteps-tool": "./cjs/patchsteps-tool.js"
-    },
-    "devDependencies": {
-        "@babel/core": "^7.0.0",
-        "@babel/cli": "^7.0.0",
-        "@babel/plugin-transform-modules-commonjs": "^7.0.0"
-    },
-    "dependencies": {},
-    "repository": {
-        "type": "git",
-        "url": "git+https://gitlab.com/20kdc/patch-steps-lib.git"
-    },
-    "author": "20kdc",
-    "contributors": [
-        "ac2pic"
-    ],
-    "bugs": {
-        "url": "https://gitlab.com/20kdc/patch-steps-lib/issues"
-    }
+  "name": "@20kdc/patch-steps-lib",
+  "type": "commonjs",
+  "description": "'Patch Steps' library: Implements a 'program-like' JSON patching format.",
+  "homepage": "https://gitlab.com/20kdc/patch-steps-lib",
+  "version": "1.1.3",
+  "license": "CC0-1.0",
+  "main": "cjs/patchsteps.js",
+  "scripts": {
+    "prepare": "npm run build",
+    "build": "babel src/patchsteps-test2.js src/patchsteps-patch.js src/tests.json src/patchsteps-diff.js src/patchsteps-tests.js src/patchsteps-callable.js src/patchsteps-tokens.js src/patchsteps-utils.js src/patchsteps-tool.js src/patchsteps.js src/patchsteps-exprevaluator.js src/patchsteps-stepmachine.js --plugins @babel/plugin-transform-modules-commonjs -d cjs",
+    "test": "npm run build && node ./cjs/patchsteps-tool.js post && node ./cjs/patchsteps-tests.js"
+  },
+  "bin": {
+    "patchsteps-tool": "./cjs/patchsteps-tool.js"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/cli": "^7.0.0",
+    "@babel/plugin-transform-modules-commonjs": "^7.0.0"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/20kdc/patch-steps-lib.git"
+  },
+  "author": "20kdc",
+  "contributors": [
+    "ac2pic"
+  ],
+  "bugs": {
+    "url": "https://gitlab.com/20kdc/patch-steps-lib/issues"
+  }
 }
