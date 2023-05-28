@@ -246,13 +246,29 @@ compiler.registerHandler("ELSE", function(compiler, step, steps) {
 
 callable.register("IF", async function(state, args) {
 	const sm = state.stepMachine;
+	const memory = state.memory;
 	const compiledExpression = compileExpression(args["cond"] || "true");
-	const condResult = evaluateExpression(compiledExpression);
+	const condResult = evaluateExpression(compiledExpression, memory["variables"]);
 	if ((!!condResult) == false) {
 		sm.addTempStep(args["elseJmp"]);
 	}
 });
 
+
+callable.register("CREATE_VARIABLE", async function(state, args) {
+	const memory = state.memory;
+	const name = args["name"];
+	const value = args["value"];
+	memory["variables"] = memory["variables"] || {};
+	memory["variables"][name] = value;
+});
+callable.register("INCREMENT", async function(state, args) {
+	const memory = state.memory;
+	const name = args["name"];
+	const value = args["value"];
+	memory["variables"] = memory["variables"] || {};
+	memory["variables"][name] += value;
+});
 callable.register("PRINT", async function(state, args) {
 	console.log(args["data"]);
 });
@@ -265,17 +281,32 @@ callable.register("PRINT_STEPS", async function(state, args) {
 (async function() {
 	// Test LABELS
 	const steps = [{
+		"type": "CREATE_VARIABLE",
+		"name": "i",
+		"value": 2,
+	},{
 		"type": "WHILE",
-		"cond": "true",
+		"cond": "i > 0",
 		"thenSteps": [{
+			"type": "INCREMENT",
+			"name": "i",
+			"value": -1,
+		},{
 			"type": "PRINT",
 			"data": "Only called if true"
 		}, {
-			"type": "CONTINUE"
-		},{
-			"type": "BREAK"
+			"type": "IF",
+			"cond": "i == 0",
+			"thenSteps": [{
+				"type": "PRINT",
+				"data": "Breaking out of the loop now"
+			}]
 		}],
 	}];
+	/*console.log("Raw steps");
+	console.log(JSON.stringify(steps, null, 2));*/
 	const compiledSteps = compiler.compile(steps);
+	/*console.log("Compiled steps");
+	console.log(compiledSteps);*/
 	await patch({}, compiledSteps, async () => {});
 })()
