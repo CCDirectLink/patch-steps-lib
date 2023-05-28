@@ -88,7 +88,6 @@ export function evaluateExpression(node, variables = {}, cache = {}) {
 		const e = cache["eval"];
 		const operator = builtins[node.op];
 		if (!operator) {
-			console.log(node);
 			throw Error(node.op + " is not implemented.");
 		}
 

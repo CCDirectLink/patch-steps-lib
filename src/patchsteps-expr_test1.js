@@ -2,137 +2,254 @@
 import {callable, patch} from "./patchsteps.js";
 import {compileExpression} from "./patchsteps-expr_compiler.js";
 import {evaluateExpression} from "./patchsteps-expr_evaluator.js";
+import {PatchCompiler} from "./patchsteps-patch_compiler.js";
+const compiler = new PatchCompiler();
+
 callable.register("CALL", async function(state, args) {
 	const sm = state.stepMachine;
 	const memory = state.memory;
 	const functionName = args["name"];
-	memory.callstack = memory.callstack || [];
-	memory.callstack.push({
-		returnIndex: sm.getStepIndex(),
-		functionName: state.functionName, 
-		oldReferenceIndex: state.stepReferenceIndex
-	});
 	let functionIndex = sm.findLabelIndex(functionName);
 	if (functionIndex == -1) {
 		state.debugState.throwError("ValueError", functionName + " does not exist.")
 	}
-	state.debugState.addStep(sm.getStepIndex(), "CALL", state.functionName);
-	sm.gotoLabel(functionName);
-	state.functionName = functionName;
-	state.stepReferenceIndex = functionIndex + 1;
-});
-
-callable.register("GOTO", async function(state, args) {
-	const sm = state.stepMachine;
-	sm.setStepIndex(sm.findLabelIndex(args["name"]))
+	const functionStartIndex = functionIndex + 1;
+	const odContext = sm.getCurrentContext();
+	sm.pushContext({
+		name: functionName,
+		offset: functionStartIndex,
+		returnIndex: sm.getStepIndex() + 1,
+	});
+	state.debugState.addStep(sm.getStepIndex(), "CALL", oldContext.name);
+	sm.setStepIndex(functionIndex);
 });
 
 callable.register("RETURN", async function(state, args) {
 	const sm = state.stepMachine;
-	const memory = state.memory;
-
-	memory.callstack = memory.callstack || [];
-	let oldCallState = memory.callstack.pop();
-	if (oldCallState == null) {
+	let oldContext = sm.popContext();
+	if (oldContext == null) {
 		sm.exit();
 	} else {
-		const {returnIndex, functionName, oldReferenceIndex} = oldCallState;
-		state.functionName = functionName;
-		state.stepReferenceIndex = oldReferenceIndex;
+		const {returnIndex} = oldCallState;
 		sm.setStepIndex(returnIndex);	
 		state.debugState.removeLastStep();
 	}
 });
 
-callable.register("FUNCTION", async function(state, args) {
-	const sm = state.stepMachine;
-	const currentIndex = sm.findLabelIndex(args["name"]);
-	if (currentIndex > -1) {
-		state.debugState.throwError("ValueError", "Redefinining function " + args["name"]);
-	}
+compiler.registerHandler("FUNCTION", function(compiler,step) {
 	// New function	
 	const newSteps = [];
 	newSteps.push({
-		"type": "EXIT"
-	});
-
-	newSteps.push({
 		"type": "LABEL",
-		"name": args["name"]
+		"callable": true,
+		"name": step["name"]
 	});
-
-	for (const step of (args["body"] || [])) {
-		newSteps.push(step);
+	for (const statement of (step["body"] || [])) {
+		newSteps.push(statement);
 	}
-
 	newSteps.push({
 		"type": "RETURN",
 	});
-	sm.addSteps(newSteps);
+	compiler.addHiddenSteps(newSteps);	
+	return 0;
+});
 
+function createIfSteps(compiler, step, steps, endLabel) {
+	// This must be true
+	if (!compiler.isGeneratedLabel(endLabel)) {
+		console.log("Is not generated label", endLabel);
+		// this is an error
+		return;
+	}
+	
+	// IF(cond)
+	// {body}
+	// {endJmp}
+	// {endLabel}
+
+	let newSteps = [];
+
+	// IF(cond)
+	const ifStep = {
+		type: "IF",
+		cond : step.cond || "true",
+	};
+
+	ifStep["elseJmp"] = compiler.createJump(endLabel.name, ifStep);
+
+	newSteps.push(ifStep);
+	// {body}
+	const thenSteps = step["thenSteps"] || [];
+	newSteps = newSteps.concat(thenSteps); 
+	endLabel.parentStep = ifStep;
+	// {endJmp}
+	const endJmp = compiler.createJump(endLabel.name);
+	newSteps.push(endJmp);
+	// {endLabel}
+	newSteps.push(endLabel);
+	newSteps.forEach((s,i) => steps.push(s));
+}
+
+compiler.registerHandler("IF", function(compiler, step, steps) {
+	const endLabel = compiler.createLabel();
+	createIfSteps(compiler, step, steps, endLabel);	
+});
+
+compiler.registerHandler("ELIF", function(compiler, step, steps) {
+	const endLabel = steps.pop();
+	if (!compiler.isGeneratedLabel(endLabel)) {
+		// this is an error	
+		return;
+	}
+	if (!endLabel.parentStep) {
+		// this is an error
+		return;
+	}
+	const lastOwner = endLabel.parentStep;
+	if (lastOwner == null) {
+		// this is an error
+		return;
+	}
+
+	if (lastOwner.type !== "IF") {
+		// this is an error
+		return;
+	}
+
+	// This is the marker for the if
+	const elifLabel =  compiler.createLabel();
+	steps.push(elifLabel);
+	// Make the last if jump to this if if the condition fails
+	const elseJmp = compiler.createJump(elifLabel.name, lastOwner);
+	lastOwner["elseJmp"] = elseJmp;
+	createIfSteps(compiler, step, steps, endLabel);	
+})
+
+compiler.registerHandler("WHILE", function(compiler, step, steps) {
+	// WHILE(cond)
+	// {body}
+	// {endLabel}
+	// ==
+	// {label}
+	// IF(cond)
+	// {body}
+	// {goto label}
+	// {endLabel}
+
+	// {label}
+	const whileLoopLabel = compiler.createLabel();
+	whileLoopLabel.loop = true;
+	steps.push(whileLoopLabel);
+
+	const whileLoopEndLabel = compiler.createLabel();
+	const newSteps = [];
+	// IF(cond)
+	// {body}
+	createIfSteps(compiler, step, newSteps, whileLoopEndLabel);
+	const endLabel = newSteps.pop();
+
+	// Unnecessary jump label added by if to exit
+	compiler.deleteJump(newSteps.pop());
+	// {goto label}
+	newSteps.push(compiler.createJump(whileLoopLabel.name));
+	// {endLabel}
+	newSteps.push(endLabel);
+	newSteps.forEach((s,i) => steps.push(s));
+	// Skip the label and if condition since it was already generated
+	return 2;
+});
+
+compiler.registerHandler("BREAK", function(compiler, step, steps) {
+	let loopCond = null;
+	for(const [index, loopStep] of steps.reverseIterator()) {
+		if (loopStep.callable) {
+			// We are about to exit out of a function
+			// No loop found
+			
+			break;
+		}
+
+		if (!loopStep.loop) {
+			continue;
+		}
+		// We found it
+		loopCond = steps.get(index + 1);
+	}
+
+	if (loopCond == null) {
+		throw Error("break used outside loop context");	
+	}
+	steps.push(compiler.createJump(loopCond.elseJmp.name));	
+});
+
+compiler.registerHandler("CONTINUE", function(compiler, step, steps) {
+	let loopLabel = null;
+	for(const [_, loopLabelStep] of steps.reverseIterator()) {
+		if (loopLabelStep.callable) {
+			// We are about to exit out of a function
+			// No loop found
+			
+			break;
+		}
+
+		if (!loopLabelStep.loop) {
+			continue;
+		}
+		// We found it
+		loopLabel = loopLabelStep;
+	}
+
+	if (loopLabel == null) {
+		throw Error("continue used outside loop context");	
+	}
+	steps.push(compiler.createJump(loopLabel.name));	
+});
+
+compiler.registerHandler("ELSE", function(compiler, step, steps) {
+	const endLabel = steps.pop();
+	if (!compiler.isGeneratedLabel(endLabel)) {
+		// this is an error	
+		return;
+	}
+	if (!endLabel.parentStep) {
+		// this is an error
+		return;
+	}
+	const lastOwner = endLabel.parentStep;
+	if (lastOwner == null) {
+		// This is an error
+		return;
+	}
+	if (lastOwner.type !== "IF") {
+		// this is an error
+		return;
+	}
+
+	// This is the marker for the else
+	const elseLabel = compiler.createLabel();
+	steps.push(elseLabel);
+	// Make the last if jump to this if if the condition fails
+	lastOwner["elseJmp"] = compiler.createJump(elseLabel.name, lastOwner);
+	// Always execute
+	const mySteps = [];
+	createIfSteps(compiler, step, mySteps, endLabel);	
+	// Remove the if since it's unnecessary
+	mySteps.shift();
+	// Else is the final branch, no one else can add to
+	// the final label
+	mySteps[mySteps.length - 1].parentStep = null;
+	// Add it to the big steps
+	mySteps.forEach((s, i) => {
+		steps.push(s)	
+	});
 });
 
 callable.register("IF", async function(state, args) {
 	const sm = state.stepMachine;
-	const memory = state.memory;
-	if (isNaN(args["number"])) {
-		const randomNumber = Math.round(Math.random() * 1e6);
-		sm.getCurrentStep()["number"] = randomNumber;
-		args["number"] = sm.getCurrentStep()["number"];
-	}
-
-	if (!args["label"]) {
-		sm.getCurrentStep()["label"] = "IF_" + args["number"];
-		args["label"] = sm.getCurrentStep()["label"];
-	}
-
-	const ifLabel = args["label"];
-	let ifIndex = sm.findLabelIndex(args["label"]);
-	if (ifIndex == -1) {
-		const newSteps = [];
-		newSteps.push({
-			"type": "EXIT"
-		});
-	
-		newSteps.push({
-			"type": "LABEL",
-			"name": ifLabel
-		});
-	
-		for (const step of (args["thenSteps"] || [])) {
-			newSteps.push(step);
-		}
-	
-		newSteps.push({
-			"type": "RETURN",
-		});
-		sm.addSteps(newSteps);
-		ifIndex = sm.findLabelIndex(args["label"]);
-	}
-	let compiledExpression;
-	const compiledExpressionName = "IF_EXPR_" + args["number"];
-
-	if (memory[compiledExpressionName] == null) {
-		console.log("Compiling expression for the first time.");
-		compiledExpression = compileExpression(args["cond"] || "true");
-		memory[compiledExpressionName] = compiledExpression;
-	} else {
-		console.log("Getting compiled expression from memory.");
-		compiledExpression = memory[compiledExpressionName];
-		sm.exit();	
-	}
-
+	const compiledExpression = compileExpression(args["cond"] || "true");
 	const condResult = evaluateExpression(compiledExpression);
-	if (!!condResult) {
-		memory.callstack = memory.callstack || [];
-		memory.callstack.push({
-			returnIndex: sm.getStepIndex(),
-			functionName: state.functionName, 
-			oldReferenceIndex: state.stepReferenceIndex
-		});
-		state.debugState.addStep(sm.getStepIndex(), "IF", state.functionName);
-		state.stepReferenceIndex = ifIndex + 1;
-		sm.gotoLabel(args["label"]);
+	if ((!!condResult) == false) {
+		sm.addTempStep(args["elseJmp"]);
 	}
 });
 
@@ -141,57 +258,24 @@ callable.register("PRINT", async function(state, args) {
 });
 
 callable.register("PRINT_STEPS", async function(state, args) {
-	console.log(state.stepMachine.steps);
-});
-
-
-
-callable.register("EXIT", async function(state) {
-	const sm = state.stepMachine;
-	sm.exit();
+	console.log("Printing steps");
 });
 
 
 (async function() {
 	// Test LABELS
 	const steps = [{
-		"type": "FUNCTION",
-		"name": "MyFunction",
-		"body": [{
-			"type": "PRINT",
-			"data": "I did exactly what you wanted."
-		},{
-			"type": "PRINT",
-			"data": "Inside function",
-		}]
-	}, {
-		"type": "PRINT",
-		"data": "Calling OWO", 
-	}, {
-		"type": "CALL",
-		"name": "MyFunction"
-	}, {
-		"type": "LABEL",
-		"name": "loop",
-	}, {
-		"type": "IF",
-		"cond": "2 == 2",
-		"thenSteps" : [{
+		"type": "WHILE",
+		"cond": "true",
+		"thenSteps": [{
 			"type": "PRINT",
 			"data": "Only called if true"
-		}]
-	}, {
-		"type": "GOTO",
-		"name": "loop",
-	},{
-		"type": "IF",
-		"cond": "1 == 2",
-		"thenSteps" : [{
-			"type": "PRINT",
-			"data": "Will not be called"
-		}]
-	}, {
-		"type": "PRINT_STEPS",
+		}, {
+			"type": "CONTINUE"
+		},{
+			"type": "BREAK"
+		}],
 	}];
-	await patch({}, steps, async () => {});
+	const compiledSteps = compiler.compile(steps);
+	await patch({}, compiledSteps, async () => {});
 })()

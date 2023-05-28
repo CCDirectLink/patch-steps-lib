@@ -8,7 +8,7 @@
   "main": "cjs/patchsteps.js",
   "scripts": {
     "prepare": "npm run build",
-    "build": "babel src/patchsteps-expr_test2.js src/patchsteps-patch.js src/patchsteps-expr_test1.js src/tests.json src/patchsteps-diff.js src/patchsteps-expr_tokens.js src/patchsteps-expr_shunting.js src/patchsteps-expr_compiler.js src/patchsteps-callable.js src/patchsteps-expr_errors.js src/patchsteps-expr_tokenizer.js src/patchsteps-expr_test3.js src/patchsteps-utils.js src/patchsteps-tool.js src/patchsteps-expr_evaluator.js src/patchsteps.js src/patchsteps-stepmachine.js --plugins @babel/plugin-transform-modules-commonjs -d cjs",
+    "build": "babel src/patchsteps-patch_compiler.js src/patchsteps-expr_test2.js src/patchsteps-patch.js src/patchsteps-expr_test1.js src/tests.json src/patchsteps-diff.js src/patchsteps-expr_tokens.js src/patchsteps-expr_shunting.js src/patchsteps-expr_compiler.js src/patchsteps-callable.js src/patchsteps-expr_errors.js src/patchsteps-expr_tokenizer.js src/patchsteps-expr_test3.js src/patchsteps-utils.js src/patchsteps-tool.js src/patchsteps-expr_evaluator.js src/patchsteps.js src/patchsteps-stepmachine.js --plugins @babel/plugin-transform-modules-commonjs -d cjs",
     "test": "npm run build && node ./cjs/patchsteps-tool.js post && node ./cjs/patchsteps-tests.js"
   },
   "bin": {
