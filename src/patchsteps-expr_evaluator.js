@@ -39,7 +39,7 @@ const builtins = {
 const PREVIEW_ERROR_LENGTH = 19;
 
 function checkIfVariableExists(id, variables) {
-	if (!variables[id]) {
+	if (variables[id] == undefined) {
 		throw Error(id + " is not defined.");
 	}
 }
