@@ -55,6 +55,8 @@ it('"abc', true);
 // InvalidOpsSyntax
 io("[]", true);
 io("()",true);
+io("a[] = 2");
+io("a() = 2", true);
 io("abc()");
 io("abc[]");// same as abc[0]
 io("abc[][]"); // same as abc[0][0]

@@ -28,7 +28,23 @@ const builtins = {
 	},
 	'#': (a,b,e) => {
 		return e(a)[e(b)];
-	}, 
+	},
+	'@set': function() {
+		const args = Array.from(arguments);
+		for(let i = 0; i < args.length - 1; i++) {
+			// TODO: Do assignment		
+		}
+
+		return args[args.length - 1];
+	},
+	',': function(a, b, e) {
+		const l = e(a);
+		const r = e(b);
+		if (Array.isArray(l)) {
+			return l.concat([r]);
+		}
+		return [l, r];
+	},
 	'**': (a,b,e) => e(a)**e(b),
 	"==": (a,b,e) => e(a)==e(b),
 	"!=": (a,b,e) => e(a)!=e(b),
@@ -61,12 +77,18 @@ function getAccessorValue(node, variables, e) {
 
 function callFunction(callNode, variables, e) {
 	const functionId = callNode.id;
-	checkIfVariableExists(functionId, variables);
-	const func = variables[functionId];
+	let func;
+	if (builtins[functionId]) {
+		func = builtins[functionId];
+	} else {
+		checkIfVariableExists(functionId, variables);
+		func = variables[functionId];
+	}
+
 	if (typeof func  !== "function") {
 		throw Error(functionId + " is not a function.");
 	}
-	const callArgs = callNode.args.map(n => e(n));
+	const callArgs = callNode.args.map(n => e(n)).pop();
 	return func.apply({variables, eval: e}, callArgs);
 }
 
@@ -103,3 +125,4 @@ export function evaluateExpression(node, variables = {}, cache = {}) {
 		return getAccessorValue(node, variables, e);
 	}
 }
+

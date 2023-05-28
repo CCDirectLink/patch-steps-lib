@@ -57,6 +57,8 @@ t("abc[]", 5)
 t("abc[0]", 5)
 t("abc[1]", 10)
 t("cde[][]", 4);
+t("abc[0] = 1", 1);
+t("abc[0] = 'hi'", 'hi');
 t("def()", 1)
 t("abc[def()]", 10)
 t("true||false", true)

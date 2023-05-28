@@ -3,7 +3,12 @@ export const TOKEN_GETTER = {
         "type": "#",
         "match": "#"
 };
-
+export const TOKEN_COMMA = {
+        "precedence": 1,
+        "assocLeft": true,
+        "type": ",",
+        "match": ","
+};
 export const TOKEN_OPERATORS = [{
         "precedence": 18,
         "type": "(",
@@ -147,13 +152,15 @@ export const TOKEN_OPERATORS = [{
         "type": "||",
         "match": "||"
     },
-    {
-        "precedence": 1,
-        "assocLeft": true,
-        "type": ",",
-        "match": ","
-    }
-].sort((e, a) => a.type.length - e.type.length);
+	{
+		"precedence": 2,
+		"assocLeft": false,
+		"type": "FUNCTION",
+		"match": "=",
+		"value": "@set"
+	},
+	TOKEN_COMMA
+].sort((e, a) => a.match.length - e.match.length);
 export const TOKEN_STRING = {
 	type: "STRING",
 	literal: true,
@@ -237,3 +244,9 @@ export function openTokenMatch(closeTokenChar) {
 	return '';
 }
 
+export function isAssignmentToken(tokenChar) {
+	if (tokenChar == null) {
+		return false;
+	}
+	return tokenChar == '=';
+}

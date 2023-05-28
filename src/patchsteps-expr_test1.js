@@ -303,10 +303,10 @@ callable.register("PRINT_STEPS", async function(state, args) {
 			}]
 		}],
 	}];
-	/*console.log("Raw steps");
-	console.log(JSON.stringify(steps, null, 2));*/
+	console.log("Raw steps");
+	console.log(JSON.stringify(steps, null, 2));
 	const compiledSteps = compiler.compile(steps);
-	/*console.log("Compiled steps");
-	console.log(compiledSteps);*/
+	console.log("Compiled steps");
+	console.log(compiledSteps);
 	await patch({}, compiledSteps, async () => {});
 })()

@@ -69,32 +69,34 @@ export class Tokenizer {
 
 		const input = this.getInput();
 		for(const tokenType of TOKEN_TYPES) {
-			const value = tokenType.match;
-			if (typeof value == "string") {
-				if (input.substring(0, value.length) == value) {
+			const match = tokenType.match;
+			if (typeof match == "string") {
+				if (input.substring(0, match.length) == match) {
 					const index = this.index;
+					const value = tokenType.value || match;
 					const newToken = Object.assign({index,value}, tokenType);
-					this.index += value.length;
+					this.index += match.length;
 					return newToken;
 				}
-			} else if (value == null) { 
+			} else if (match == null) { 
 				const quoteChar = input[0];
 				if (!this.isQuoteCharacter(quoteChar)) {
 					continue;
 				}
 				return this.getStringLiteral();
 			} else {
-				const match = input.match(value);
-				if (match) {
+				const foundMatch = input.match(match);
+				if (foundMatch) {
+					const value = foundMatch[0];
 					const index = this.index;
-					this.index += match[0].length;
+					this.index += value.length;
 					let newToken = Object.assign({index}, tokenType);
 					if (newToken.type == "BOOL") {
-						newToken.value = match[0] == "true";
+						newToken.value = value == "true";
 					} else if (newToken.literal) {
-						newToken.value = Number(match[0].replace(/_/g, ""));
+						newToken.value = Number(value.replace(/_/g, ""));
 					} else {
-						newToken.value = match[0];
+						newToken.value = value;
 					}
 					return newToken;
 				}

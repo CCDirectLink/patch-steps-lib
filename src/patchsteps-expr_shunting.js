@@ -1,4 +1,4 @@
-import {TOKEN_NOOP, TOKEN_DECIMAL, TOKEN_GETTER, TOKEN_INVALID, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
+import {TOKEN_NOOP, TOKEN_COMMA, TOKEN_DECIMAL, TOKEN_GETTER, TOKEN_INVALID,isAssignmentToken, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
 
 export function shuntingYard(tokens) {
 	const output  = [];
@@ -6,10 +6,12 @@ export function shuntingYard(tokens) {
 	const changeTracker = [];
 
 	for(let i = 0; i < tokens.length; i++) {
-		const token = tokens[i];
+		let token = tokens[i];
 		if (token.type == "EOF") {
 			break;
 		}
+
+
 		if (token.type == "IDENTIFIER") {
 			const nextToken = tokens[i + 1];
 			if (nextToken && isOpenToken(nextToken.type)) {
@@ -40,11 +42,13 @@ export function shuntingYard(tokens) {
 			let deltaOutput = output.length - oldOutLen;
 
 			const lastOperator = operators[operators.length - 1];
+			const nextToken = tokens[i + 1];
 			if (deltaOutput == 0 && token.type == ")") {
 				if (!lastOperator || lastOperator.type != "IDENTIFIER") {
 					// Can't be empty so ) is invalid
 					const invalidToken = Object.assign({index: token.index, value: token.value}, TOKEN_INVALID);
 					output.push(invalidToken);
+					break;
 				} else {
 					// Has to be before since it's a function call
 					output.push(TOKEN_NOOP);
@@ -58,6 +62,10 @@ export function shuntingYard(tokens) {
 					operator.type = "FUNCTION";
 					output.push(operator);
 				} else {
+					if (isAssignmentToken(nextToken.match)) {
+						operator.type = "STRING";
+						operator.literal = true;
+					}
 					if (deltaOutput == 0) {
 						output.push(operator);
 					} else {
@@ -66,8 +74,18 @@ export function shuntingYard(tokens) {
 						output.splice(oldOutLen, 0, operator);
 					}
 				}
+				if (isAssignmentToken(nextToken.match)) {
+					if (callType == "call") {
+						// Not valid
+						const invalidToken = Object.assign({index: token.index, value: token.value}, TOKEN_INVALID);
+						output.push(invalidToken);
+						break;
+					} else {
+						const commaToken = Object.assign({index: token.index, value: ","}, TOKEN_COMMA);
+						output.push(commaToken);
+					}
+				}
 			}
-
 			if (deltaOutput == 0) {
 				// Has to be after since since it's argument 2 of getter
 				if (token.type == "]") {
@@ -77,7 +95,9 @@ export function shuntingYard(tokens) {
 			}
 
 			if (token.type == "]") {
-				output.push(Object.assign({index: openOperator.index, value: "#"}, TOKEN_GETTER));
+				if (!isAssignmentToken(nextToken.match)) {
+					output.push(Object.assign({index: openOperator.index, value: "#"}, TOKEN_GETTER));
+				}
 			}
 		} else if (operators.length == 0) {
 			operators.push(token);
@@ -116,9 +136,20 @@ export function shuntingYard(tokens) {
 			}
 		}
 	}
-
+	
 	while(operators.length) {
 		output.push(operators.pop());
+	}
+	for (let i = 0; i < output.length; i++) {
+		if (output[i].match == "=") {
+			const commaToken = Object.assign({index: output[i].index, value: ","}, TOKEN_COMMA);
+			// It no longer needs this
+			delete output[i].precedence
+			// Insert comma
+			output.splice(i, 0, commaToken);
+			// move back to comma token
+			i++;
+		}
 	}
 	return output;
 }
