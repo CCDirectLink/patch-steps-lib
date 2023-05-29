@@ -1,24 +1,182 @@
-import {TOKEN_NOOP, TOKEN_COMMA, TOKEN_DECIMAL, TOKEN_GETTER, TOKEN_INVALID,isAssignmentToken, isOpenToken, isCloseToken, openTokenMatch} from './patchsteps-expr_tokens.js';
+import {
+	makeToken,
+	TOKEN_NOOP, 
+	TOKEN_COMMA, 
+	TOKEN_DECIMAL, 
+	TOKEN_GETTER, 
+	TOKEN_INVALID,
+	isAssignmentToken, 
+	isOpenToken, 
+	isCloseToken, 
+	openTokenMatch
+} from './patchsteps-expr_tokens.js';
 
-export function shuntingYard(tokens) {
+
+function handleParenTransform(tokens, index, openToken,  output, subExprIndex, subExprLen) {
+	const closeToken = tokens[index];
+	let tokenBeforeExpr = output[subExprIndex - 1];
+	if (tokenBeforeExpr == null) {
+		// Make logic easier
+		const emptyToken = makeToken("EMPTY", closeToken.index);
+		tokenBeforeExpr = emptyToken;
+	}
+	
+	// All user function calls
+	if ((tokenBeforeExpr.type == "IDENTIFIER") || 
+		(tokenBeforeExpr.type == "FUNCTION" && tokenBeforeExpr.value == "@call")) {
+		// call(userFuncPointer, arguments)
+
+		// a() => call(a, args) => a args , @call
+		// a()() => call(call(a, args1), args2) => a args1 , @call args2 , @call
+
+		// args
+		// Just a placeholder
+		if (subExprLen == 0) {
+			const emptyToken = makeToken("EMPTY", closeToken.index);
+			output.push(emptyToken);
+		}
+		// ,
+		const commaToken = makeToken(",");
+		output.push(commaToken);
+		
+		// @call
+		const callToken = makeToken("FUNCTION", openToken.index, "@call");
+		output.push(callToken);
+		return;	
+	} else if (subExprLen == 0) {
+		// Only call functions can be empty
+		// Invalid expression
+		const invalidToken = makeToken("INVALID", closeToken.index);
+		output.push(invalidToken);
+		return;
+	}
+
+	// FACT: subExprLen > 0
+
+	if (!tokenBeforeExpr.number && tokenBeforeExpr.literal) {
+		// examples: ""(expression), false(expression)
+		// Invalid expression
+		const invalidToken = makeToken("INVALID", openToken.index);
+		output.push(invalidToken);
+		return;
+	} 
+
+	const lastExprOp = output[subExprIndex + subExprLen - 1];
+
+	// Essentially a list of expressions
+	// Get the result of the last sub expression
+	if (lastExprOp.type == ",") {
+		const popToken = makeToken("FUNCTION", 0, "@pop");
+		output.push(popToken);	
+	}
+
+	// Yay math!
+	if (tokenBeforeExpr.number) {
+		// 1(expression) => 1 * (expression)
+		const multiToken = makeToken("*", openToken.index); 
+		output.push(multiToken);
+	}
+}
+function handleSquareBracketTransform(tokens, index, openToken,  output, subExprIndex, subExprLen) {
+	// [] will only be used for accessing
+	// objects/array properties
+	// It's only valid in these contexts
+	// a()[0], a() returns an array/object with key 0
+	// i[0], i is an array/object with key 0
+	// i[0][0], i[0] is an array/object with key 0
+	const closeToken = tokens[index];
+	let tokenBeforeExpr = output[subExprIndex - 1];
+	if (tokenBeforeExpr == null) {
+		// ^[]
+		const invalidToken = makeToken("INVALID", openToken.index, openToken.value);
+		output.push(invalidToken);
+		return;
+	}
+	if (!(tokenBeforeExpr.type == "IDENTIFIER") &&
+		!(tokenBeforeExpr.type == "FUNCTION" && tokenBeforeExpr.value != "@call") &&
+		!(tokenBeforeExpr.type == "#")) {
+		// not an identifier and
+		// not a builtin call expression and 
+		// not a getter
+		const invalidToken = makeToken("INVALID", openToken.index);
+		output.push(invalidToken);
+		return;
+
+	}
+	if (subExprLen == 0) {
+		// [] is equal to [0]
+		// also makes logic easier
+		const zeroToken = makeToken("DECIMAL", openToken.index, 0);
+		output.push(zeroToken);	
+		subExprLen++;
+	}
+
+	const lastExprOp = output[subExprIndex + subExprLen - 1];
+	// commas in between square brackets behaves like parenthesis
+	// Essentially a list of expressions
+	// Get the result of the last sub expression
+	if (lastExprOp.type == ",") {
+		const popToken = makeToken("FUNCTION", 0, "@pop");
+		output.push(popToken);	
+	}
+	
+	// finally apply the operator to do getter
+	const getterToken = makeToken("#", openToken.index); 
+	output.push(getterToken);
+}
+
+function handleAssignLeftHandSide(tokens, index, output) {
+	// has to be either 
+	// i = 2
+	// id 
+	// or 
+	// i[0] = 2
+	//
+	const token = tokens[index];
+	let lastToken = output.pop();
+	if (lastToken == null) {
+		const emptyToken = makeToken("EMPTY", token.index);
+		lastToken = emptyToken;
+	}
+	// WORLD "i" 
+	if (lastToken.type == "IDENTIFIER") {
+		// push reserved IDENTIFIER
+		output.push(makeToken("IDENTIFIER", lastToken.index, "WORLD"))
+		// push the id as a string
+		output.push(makeToken("STRING", lastToken.index, lastToken.value));	
+	} else if(lastToken.type != "#") {
+		const invalidToken = makeToken("INVALID", token.index);
+		output.push(invalidToken);
+		return;
+		
+	}
+	// ,
+	output.push(makeToken(",", token.index));
+}
+
+export function shuntingYard(codeTokens) {
 	const output  = [];
 	const operators = [];
 	const changeTracker = [];
-
+	if (codeTokens.length == 0) {
+		return output;
+	}
+	// expression = expression "," expression 
+	const tokens = [].concat(codeTokens);
+	tokens.unshift(makeToken("("))
+	const EOF = tokens.pop();
+	tokens.push(makeToken(")"));
+	tokens.push(EOF);
 	for(let i = 0; i < tokens.length; i++) {
 		let token = tokens[i];
 		if (token.type == "EOF") {
 			break;
 		}
-
-
+		if (isAssignmentToken(token.type)) {
+			handleAssignLeftHandSide(tokens, i, output);
+		}
 		if (token.type == "IDENTIFIER") {
-			const nextToken = tokens[i + 1];
-			if (nextToken && isOpenToken(nextToken.type)) {
-				operators.push(token);
-			} else {
-				output.push(token);
-			}
+			output.push(token);
 		} else if(token.literal == true) {
 			output.push(token);
 		} else if (isOpenToken(token.type)) {
@@ -27,78 +185,28 @@ export function shuntingYard(tokens) {
 			changeTracker.push(output.length);
 			operators.push(token);
 		} else if (isCloseToken(token.type)) {
-			let openOperator;
+			// Assume an open token 
+			// has a matching close token
+			let openToken;
 			while (operators.length) {
 				let operator = operators.pop();
 				if (operator.type == openTokenMatch(token.type)) {
-					openOperator = operator;
+					openToken = operator;
 					break;
 				}
 				output.push(operator);
 			}
 
 			// Find how many tokens were in between the pairs
-			let oldOutLen = changeTracker.pop();
-			let deltaOutput = output.length - oldOutLen;
+			let subExprIndex = changeTracker.pop();
+			let subExprLen = output.length - subExprIndex;
 
-			const lastOperator = operators[operators.length - 1];
-			const nextToken = tokens[i + 1];
-			if (deltaOutput == 0 && token.type == ")") {
-				if (!lastOperator || lastOperator.type != "IDENTIFIER") {
-					// Can't be empty so ) is invalid
-					const invalidToken = Object.assign({index: token.index, value: token.value}, TOKEN_INVALID);
-					output.push(invalidToken);
-					break;
-				} else {
-					// Has to be before since it's a function call
-					output.push(TOKEN_NOOP);
-				}
+			if (token.type == ")") {
+				handleParenTransform(tokens, i, openToken, output, subExprIndex, subExprLen);
+			} else if (token.type == "]") {
+				handleSquareBracketTransform(tokens, i, openToken, output, subExprIndex, subExprLen);
 			}
 
-			if (lastOperator && lastOperator.type == "IDENTIFIER") {
-				const callType = token.type == ")" ? "call" : "index";
-				const operator = Object.assign({}, operators.pop());
-				if (callType == "call") {
-					operator.type = "FUNCTION";
-					output.push(operator);
-				} else {
-					if (isAssignmentToken(nextToken.match)) {
-						operator.type = "STRING";
-						operator.literal = true;
-					}
-					if (deltaOutput == 0) {
-						output.push(operator);
-					} else {
-						// Has to be inserted before all the previous tokens
-						// since getter requires the object be the first argument
-						output.splice(oldOutLen, 0, operator);
-					}
-				}
-				if (isAssignmentToken(nextToken.match)) {
-					if (callType == "call") {
-						// Not valid
-						const invalidToken = Object.assign({index: token.index, value: token.value}, TOKEN_INVALID);
-						output.push(invalidToken);
-						break;
-					} else {
-						const commaToken = Object.assign({index: token.index, value: ","}, TOKEN_COMMA);
-						output.push(commaToken);
-					}
-				}
-			}
-			if (deltaOutput == 0) {
-				// Has to be after since since it's argument 2 of getter
-				if (token.type == "]") {
-					const zeroToken = Object.assign({index: openOperator.index, value: 0}, TOKEN_DECIMAL);
-					output.push(zeroToken);
-				}
-			}
-
-			if (token.type == "]") {
-				if (!isAssignmentToken(nextToken.match)) {
-					output.push(Object.assign({index: openOperator.index, value: "#"}, TOKEN_GETTER));
-				}
-			}
 		} else if (operators.length == 0) {
 			operators.push(token);
 		} else {
@@ -107,14 +215,14 @@ export function shuntingYard(tokens) {
 			const PREC_GREATER = 2;
 			let lastOperator = operators[operators.length - 1];
 			let preorder; 
-			if (lastOperator.precedence < token.precedence) {
+			if (token.precedence < lastOperator.precedence) {
 				preorder = PREC_LOWER;
-			} else if (lastOperator.precedence == token.precedence) {
+			} else if (token.precedence == lastOperator.precedence) {
 				preorder = PREC_EQUAL;
 			} else {
 				preorder = PREC_GREATER;
 			}
-			if ((preorder == PREC_LOWER) ||
+			if ((preorder == PREC_GREATER) ||
 				(preorder == PREC_EQUAL && token.assocLeft == false)) {
 				operators.push(token);
 			} else {
@@ -125,6 +233,12 @@ export function shuntingYard(tokens) {
 						break;
 					}
 					if (lastOperator.precedence < token.precedence) {
+						operators.push(lastOperator);
+						operators.push(token);
+						break;
+					}
+					if (isOpenToken(lastOperator.type)) {
+						// Do not escape subexpression scope
 						operators.push(lastOperator);
 						operators.push(token);
 						break;
@@ -142,12 +256,14 @@ export function shuntingYard(tokens) {
 	}
 	for (let i = 0; i < output.length; i++) {
 		if (output[i].match == "=") {
-			const commaToken = Object.assign({index: output[i].index, value: ","}, TOKEN_COMMA);
+			const callSetToken = makeToken("FUNCTION", output[i].index, "@set");
+			const commaToken = makeToken(",", output[i].index);
 			// It no longer needs this
 			delete output[i].precedence
 			// Insert comma
-			output.splice(i, 0, commaToken);
-			// move back to comma token
+			// object index , value , @set == @set(object, index, value)
+			output.splice(i, 1, commaToken, callSetToken);
+			// move back to match
 			i++;
 		}
 	}

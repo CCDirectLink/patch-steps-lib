@@ -3,7 +3,7 @@ import {shuntingYard} from './patchsteps-expr_shunting.js';
 import {PrettyError} from './patchsteps-expr_errors.js';
 import {
 	TOKEN_OPERATORS, 
-	TOKEN_NOOP, 
+	TOKEN_EMPTY, 
 	isOpenToken, 
 	isCloseToken, 
 	closeTokenMatch, 
@@ -189,13 +189,13 @@ export function compileExpression(input) {
 		} else if(token.type == "IDENTIFIER") {
 			const id = token.value;
 			output.push(createIdentifier(id));
-		} else if (token == TOKEN_NOOP) {
+		} else if (token.type == "EMPTY") {
 			output.push(createEmpty());
 		} else {
 			// Assume binary operator
 			let secondArg = output.pop();
 			let firstArg = output.pop();
-			const op = token.value;
+			const op = token.match;
 			output.push(createBinaryOp(op,firstArg, secondArg));
 		}
 	}

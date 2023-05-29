@@ -155,9 +155,8 @@ export const TOKEN_OPERATORS = [{
 	{
 		"precedence": 2,
 		"assocLeft": false,
-		"type": "FUNCTION",
+		"type": "=",
 		"match": "=",
-		"value": "@set"
 	},
 	TOKEN_COMMA
 ].sort((e, a) => a.match.length - e.match.length);
@@ -169,24 +168,32 @@ export const TOKEN_STRING = {
 
 export const TOKEN_HEXIDECIMAL = {
 	type: "HEXIDECIMAL",
+	number: true,
 	literal: true,
 	match: /^0x[\w]+/
 };
-export const TOKEN_OCTAL = {
-	type: "OCTAL",
-	literal: true,
-	match: /^0o[\d_]+/
-};
-export const TOKEN_BINARY = {
-	type: "BINARY",
-	literal: true,
-	match: /^0b[\d_]+/
-};
+
 export const TOKEN_DECIMAL = {
 	type: "DECIMAL",
+	number: true,
 	literal: true,
 	match: /^\d+\.?\d{0,}/
 };
+
+export const TOKEN_OCTAL = {
+	type: "OCTAL",
+	number: true,
+	literal: true,
+	match: /^0o[\d_]+/
+};
+
+export const TOKEN_BINARY = {
+	type: "BINARY",
+	number: true,
+	literal: true,
+	match: /^0b[\d_]+/
+};
+
 export const TOKEN_BOOL = {
 	type: "BOOL",
 	literal: true,
@@ -206,8 +213,12 @@ export const TOKEN_IDENTIFIER = {
 	match: /^[a-zA-Z][a-zA-Z0-9]{0,}/
 };
 
-export const TOKEN_NOOP = {
-	type: "NOOP",
+export const TOKEN_FUNCTION = {
+	type: "FUNCTION",
+};
+
+export const TOKEN_EMPTY = {
+	type: "EMPTY",
 };
 
 export const TOKEN_INVALID = {
@@ -219,6 +230,32 @@ export const TOKEN_TYPES = TOKEN_OPERATORS
 							.concat(TOKEN_LITERALS,
 									[TOKEN_IDENTIFIER]);
 
+
+export function makeToken(tokenType, index = 0, value = null) {
+	let tokenSample;
+	if (tokenType == "EMPTY") {
+		tokenSample = TOKEN_EMPTY;
+	} else if(tokenType == "INVALID") {
+		tokenSample = TOKEN_INVALID;
+	} else if (tokenType == "FUNCTION") {
+		tokenSample = TOKEN_FUNCTION;
+	} else {
+		const tokenMatches = TOKEN_TYPES.filter((e) => e.type == tokenType);
+		if (tokenMatches.length) {
+			tokenSample = tokenMatches.pop();
+		} else {
+			throw Error("Can not find token " + tokenType);
+		}
+	}
+	const cloneToken = Object.assign({}, tokenSample);
+	if (value != null) {
+		cloneToken.value = value;
+	} else if (typeof tokenSample.match == "string") {
+		cloneToken.value = tokenSample.match;
+	}
+	cloneToken.index = index;
+	return cloneToken;
+}
 
 export function isOpenToken(tokenChar) {
 	return tokenChar == '(' || tokenChar == '[';

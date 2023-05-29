@@ -29,18 +29,20 @@ const builtins = {
 	'#': (a,b,e) => {
 		return e(a)[e(b)];
 	},
-	'@set': function() {
-		const args = Array.from(arguments);
-		for(let i = 0; i < args.length - 1; i++) {
-			// TODO: Do assignment		
+	'@set': function(world, index, value) {
+		world[index] = value;
+		return value;
+	},
+	'@call': function(call, args) {
+		if (args == null) {
+			return call();
 		}
-
-		return args[args.length - 1];
+		return call.apply(null, args);
 	},
 	',': function(a, b, e) {
 		const l = e(a);
 		const r = e(b);
-		if (Array.isArray(l)) {
+		if (a.op == ",") {
 			return l.concat([r]);
 		}
 		return [l, r];
@@ -99,6 +101,10 @@ export function evaluateExpression(node, variables = {}, cache = {}) {
 	if (cache["eval"] == null) {
 		cache["eval"] = (n) => evaluateExpression(n, variables, cache);
 	}
+	if (node.type == "EMPTY") {
+		return null;
+	}
+
 	if (node.type == "LITERAL") {
 		return node.value;
 	}
