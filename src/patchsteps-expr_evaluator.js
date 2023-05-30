@@ -29,6 +29,9 @@ const builtins = {
 	'#': (a,b,e) => {
 		return e(a)[e(b)];
 	},
+	'@pop': function(array) {
+		return array.pop();
+	},
 	'@set': function(world, index, value) {
 		world[index] = value;
 		return value;
@@ -38,6 +41,15 @@ const builtins = {
 			return call();
 		}
 		return call.apply(null, args);
+	},
+	'@createArray': function(array) {
+		if (array == null) {
+			return [];
+		}
+		if (!Array.isArray(array)) {
+			return [array];
+		}
+		return array;
 	},
 	',': function(a, b, e) {
 		const l = e(a);
@@ -90,8 +102,12 @@ function callFunction(callNode, variables, e) {
 	if (typeof func  !== "function") {
 		throw Error(functionId + " is not a function.");
 	}
-	const callArgs = callNode.args.map(n => e(n)).pop();
-	return func.apply({variables, eval: e}, callArgs);
+	let callArgs = e(callNode.args);
+	if (callNode.args.op == ",") {
+		return func.apply({variables, eval: e}, callArgs);
+	}
+
+	return func.apply({variables, eval: e}, [callArgs]);
 }
 
 export function evaluateExpression(node, variables = {}, cache = {}) {
@@ -108,6 +124,10 @@ export function evaluateExpression(node, variables = {}, cache = {}) {
 	if (node.type == "LITERAL") {
 		return node.value;
 	}
+	if (node.type == "ARRAY") {
+		return node.args.map(e => evaluateExpression(e, variables));
+	}
+
 	if (node.type == "IDENTIFIER") {
 		return getIdentifierValue(node, variables);
 	}

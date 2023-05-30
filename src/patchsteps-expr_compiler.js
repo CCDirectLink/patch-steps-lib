@@ -165,27 +165,69 @@ function createBinaryOp(op, leftNode, rightNode) {
 		right: rightNode,
 	};
 }
+function createArray(args) {
+	return {
+		type: "ARRAY",
+		args,
+	};
+}
+const transforms = {
+	'@flatten': function(arg) {
+		if (!arg) {
+			return arg;
+		}
+		if (arg.op != ",") {
+			return arg;
+		}
+		const commaTokens = [];	
+		let root = arg;
+		while(true) {
+			// a,b,c => a b , c ,
+			// c
+			if (root == null) {
+				break;
+			}
+			if (root.op == ",") {
+				commaTokens.push(root.right);
+			}
+			root = root.left;
+			if (root == null) {
+				break;
+			}
+			if (root.op != ",") {
+				commaTokens.push(root);
+			}
+		}
+		commaTokens.reverse();
+		return createArray(commaTokens)
+	}
+};
 
 export function compileExpression(input) {
 	checkExpressionSyntax(input);
 	const tokenStream = doShuntingYard(input);
 	const output = [];	
 	for (const token of tokenStream) {
-		if (token.literal) {
+		if (token.type == "TRANSFORM") {
+			const transform = transforms[token.value];
+			let arg = output.pop();
+			output.push(transform(arg))
+		} else if (token.literal) {
 			output.push(createLiteral(token.value));
 		} else if (token.type === "FUNCTION") {
 			const identifier = token.value;
-			// Only pop the last value becase
+			// Only pop the last value because
 			const args = output.pop();
 			let callArgs;
-			if (Array.isArray(args)) {
-				callArgs = args;
-			} else if (args.type == "EMPTY") {
-				callArgs = [];
+			if (args.type !== ",") {
+				callArgs = [args];	
 			} else {
-				callArgs = [args];
+				callArgs = args;
 			}
-			output.push(createCall(identifier, callArgs));
+
+			// type == "," => list of arguments
+			// else it's empty or expression 
+			output.push(createCall(identifier, args));
 		} else if(token.type == "IDENTIFIER") {
 			const id = token.value;
 			output.push(createIdentifier(id));

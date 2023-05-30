@@ -12,8 +12,9 @@ import {
 } from './patchsteps-expr_tokens.js';
 
 
-function handleParenTransform(tokens, index, openToken,  output, subExprIndex, subExprLen) {
+function handleParenTransform(tokens, index, openTokenIndex,  output, subExprIndex, subExprLen) {
 	const closeToken = tokens[index];
+	const openToken = tokens[openTokenIndex];
 	let tokenBeforeExpr = output[subExprIndex - 1];
 	if (tokenBeforeExpr == null) {
 		// Make logic easier
@@ -50,7 +51,13 @@ function handleParenTransform(tokens, index, openToken,  output, subExprIndex, s
 		output.push(invalidToken);
 		return;
 	}
+	tokenBeforeExpr = tokens[openTokenIndex - 1];
+	if (tokenBeforeExpr == null) {
+		// Make logic easier
+		const emptyToken = makeToken("EMPTY", closeToken.index);
+		tokenBeforeExpr = emptyToken;
 
+	}
 	// FACT: subExprLen > 0
 
 	if (!tokenBeforeExpr.number && tokenBeforeExpr.literal) {
@@ -66,6 +73,9 @@ function handleParenTransform(tokens, index, openToken,  output, subExprIndex, s
 	// Essentially a list of expressions
 	// Get the result of the last sub expression
 	if (lastExprOp.type == ",") {
+		const flattenToken = makeToken("TRANSFORM", 0, "@flatten");
+		output.push(flattenToken);	
+
 		const popToken = makeToken("FUNCTION", 0, "@pop");
 		output.push(popToken);	
 	}
@@ -77,10 +87,16 @@ function handleParenTransform(tokens, index, openToken,  output, subExprIndex, s
 		output.push(multiToken);
 	}
 }
-function handleSquareBracketTransform(tokens, index, openToken,  output, subExprIndex, subExprLen) {
-	// [] will only be used for accessing
-	// objects/array properties
-	// It's only valid in these contexts
+function handleSquareBracketTransform(tokens, index, openTokenIndex,  output, subExprIndex, subExprLen) {
+	const openToken = tokens[openTokenIndex];
+	// Valid array contexts
+	// []
+	// [1]
+	// [1,2]
+	// [] op []
+	// [i] = [0]
+	//
+	// Valid accessor contexts
 	// a()[0], a() returns an array/object with key 0
 	// i[0], i is an array/object with key 0
 	// i[0][0], i[0] is an array/object with key 0
@@ -88,8 +104,20 @@ function handleSquareBracketTransform(tokens, index, openToken,  output, subExpr
 	let tokenBeforeExpr = output[subExprIndex - 1];
 	if (tokenBeforeExpr == null) {
 		// ^[]
-		const invalidToken = makeToken("INVALID", openToken.index, openToken.value);
-		output.push(invalidToken);
+		if (subExprLen == 0) {
+			const emptyToken = makeToken("EMPTY", closeToken.index);
+			output.push(emptyToken);
+		} else if (subExprLen > 2) {
+			const lastToken = output[subExprIndex + subExprLen - 1];
+			if (lastToken.type == ",") {
+				const flattenToken = makeToken("TRANSFORM", 0, "@flatten");
+				output.push(flattenToken);	
+			}
+		}
+
+
+		const callToken = makeToken("FUNCTION", openToken.index, "@createArray");
+		output.push(callToken);	
 		return;
 	}
 	if (!(tokenBeforeExpr.type == "IDENTIFIER") &&
@@ -116,6 +144,9 @@ function handleSquareBracketTransform(tokens, index, openToken,  output, subExpr
 	// Essentially a list of expressions
 	// Get the result of the last sub expression
 	if (lastExprOp.type == ",") {
+		const flattenToken = makeToken("TRANSFORM", 0, "@flatten");
+		output.push(flattenToken);	
+
 		const popToken = makeToken("FUNCTION", 0, "@pop");
 		output.push(popToken);	
 	}
@@ -182,29 +213,27 @@ export function shuntingYard(codeTokens) {
 		} else if (isOpenToken(token.type)) {
 			// Save before the temporary token
 			// is added
-			changeTracker.push(output.length);
+			changeTracker.push([i, output.length]);
 			operators.push(token);
 		} else if (isCloseToken(token.type)) {
 			// Assume an open token 
 			// has a matching close token
-			let openToken;
 			while (operators.length) {
 				let operator = operators.pop();
 				if (operator.type == openTokenMatch(token.type)) {
-					openToken = operator;
 					break;
 				}
 				output.push(operator);
 			}
 
 			// Find how many tokens were in between the pairs
-			let subExprIndex = changeTracker.pop();
+			let [openTokenIndex, subExprIndex] = changeTracker.pop();
 			let subExprLen = output.length - subExprIndex;
 
 			if (token.type == ")") {
-				handleParenTransform(tokens, i, openToken, output, subExprIndex, subExprLen);
+				handleParenTransform(tokens, i, openTokenIndex, output, subExprIndex, subExprLen);
 			} else if (token.type == "]") {
-				handleSquareBracketTransform(tokens, i, openToken, output, subExprIndex, subExprLen);
+				handleSquareBracketTransform(tokens, i, openTokenIndex, output, subExprIndex, subExprLen);
 			}
 
 		} else if (operators.length == 0) {

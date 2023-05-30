@@ -216,7 +216,10 @@ export const TOKEN_IDENTIFIER = {
 export const TOKEN_FUNCTION = {
 	type: "FUNCTION",
 };
+export const TOKEN_TRANSFORM = {
+	type: "TRANSFORM",
 
+}
 export const TOKEN_EMPTY = {
 	type: "EMPTY",
 };
@@ -239,6 +242,8 @@ export function makeToken(tokenType, index = 0, value = null) {
 		tokenSample = TOKEN_INVALID;
 	} else if (tokenType == "FUNCTION") {
 		tokenSample = TOKEN_FUNCTION;
+	} else if (tokenType == "TRANSFORM") {
+		tokenSample = TOKEN_TRANSFORM;
 	} else {
 		const tokenMatches = TOKEN_TYPES.filter((e) => e.type == tokenType);
 		if (tokenMatches.length) {
