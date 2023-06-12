@@ -3,11 +3,38 @@ export class StepMachine {
 		this.steps = steps;
 		this.si = 0;
 		this.finished = false;
+		this.contexts = [];
+		this.tempSteps = [];
 	}
 
-	* run() {
+	getCurrentContext() {
+		const currentContext = this.contexts[this.contexts.length - 1];
+		if (currentContext == null) {
+			return null;
+		}
+		return currentContext;
+	}
+
+	*run() {
 		while (this.si < this.steps.length) {
-			yield [this.si, this.steps[this.si]];
+			let offset = this.si;
+			let functionName = "";
+			const context = this.getCurrentContext();
+			if (context) {
+				offset = offset - context.offset;
+				functionName = context.name;
+			}
+			// These are only added to 
+			// steps that run within a specific step
+			// It will act 
+			yield [offset, this.steps[this.si], functionName];
+			// These were added by the last command
+			// So do not increment the stepIndex yet
+			while (this.tempSteps.length) {
+				const tempStep = this.tempSteps.shift();
+				yield [offset, tempStep, functionName];
+			}
+
 			if (this.finished) {
 				break;
 			}
@@ -15,57 +42,71 @@ export class StepMachine {
 		}
 	}
 	
-	addSteps(newSteps) {
-		if (Array.isArray(newSteps)) {
-			this.steps = this.steps.concat(newSteps);
-		} else {
-			this.steps.push(newSteps);
-		}
-	}
 
-	exit() {
-		this.finished = true;
-	}
-
-	gotoLabel(labelName) {
-		const labelIndex = this.findLabelIndex(labelName);
-		if (labelIndex == -1) {
-			return false;
-		}
-		this.setStepIndex(labelIndex);
-		return true;	
-	}
-
-	setStepIndex(newStepIndex) {
-		if(newStepIndex < 0 || this.steps.length <= newStepIndex) {
-			return false;
-		}
-		this.si = newStepIndex;
-		return true;
-	}
-	
-	getCurrentStep() {
-		return this.steps[this.si];
-	}
-
-	getStepIndex() {
-		return this.si;
-	}
-	
-	findLabelIndex(labelName) {
-		let stepIndex = -1;
-
-		for(const [index, step] of this.steps.entries())  {
-			if (step["type"] !== "LABEL") {
-				continue;
-			}
-			if (step["name"] == labelName) {
-				stepIndex = index;
-				break;
-			}
-		}
-
-		return stepIndex;
-	}
 }
 
+export function SafeStepMachine(stepMachine) {
+
+	return {
+		addTempStep(newStep) {
+			stepMachine.tempSteps.push(newStep);
+		},
+		pushContext(context) {
+			context.offset = context.offset || 0;
+			context.name = context.name || "";
+			stepMachine.contexts.push(context);
+		},
+		getCurrentContext() {
+			return stepMachine.getCurrentContext();
+		},
+		popContext() {
+			return stepMachine.contexts.pop();
+		},
+		exit() {
+			stepMachine.finished = true;
+		},
+		gotoLabel(labelName) {
+			const labelIndex = stepMachine.findLabelIndex(labelName);
+			if (labelIndex == -1) {
+				return false;
+			}
+			stepMachine.setStepIndex(labelIndex);
+			return true;	
+		},
+
+		setStepIndex(newStepIndex) {
+			if(newStepIndex < 0 || stepMachine.steps.length <= newStepIndex) {
+				return false;
+			}
+			// Since the step machine will increment before it
+			// fetches the instruction
+			stepMachine.si = newStepIndex - 1;
+			return true;
+		},
+		
+		getCurrentStep() {
+			return stepMachine.steps[stepMachine.si];
+		},
+
+		getStepIndex() {
+			return stepMachine.si;
+		},
+
+		findLabelIndex(labelName) {
+			let stepIndex = -1;
+
+			for(const [index, step] of stepMachine.steps.entries())  {
+				if (step["type"] !== "LABEL") {
+					continue;
+				}
+				if (step["name"] == labelName) {
+					stepIndex = index;
+					break;
+				}
+			}
+
+			return stepIndex;
+		},
+
+	};
+}

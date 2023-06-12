@@ -13,7 +13,7 @@
  */
 
 import {photocopy, photomerge} from "./patchsteps-utils.js";
-import {StepMachine} from "./patchsteps-stepmachine.js";
+import {StepMachine, SafeStepMachine} from "./patchsteps-stepmachine.js";
 // The following are definitions used for reference in DebugState.
 /*
  * ParsedPath is actually any type that translateParsedPath can understand.
@@ -24,6 +24,11 @@ import {StepMachine} from "./patchsteps-stepmachine.js";
  * declare type FileInfo = {
  *  path: string;
  *  stack: StackEntry[];
+ * };
+ *
+ * declare type ControlFlowEntry = {
+ * 	index: number; // starting point
+ * 	name: string; // name of control flow
  * };
  *
  * declare type StackEntry = StackEntryStep | StackEntryError;
@@ -44,6 +49,8 @@ export class DebugState {
 	constructor() {
 		// FileInfo[]
 		this.fileStack = [];
+		// ControlFlowEntry[]
+		this.controlFlowStack = [];
 		// FileInfo
 		this.currentFile = null;
 	}
@@ -64,6 +71,21 @@ export class DebugState {
 			protocol = "mod";
 		}
 		return protocol + ":" + parsedPath[1];
+	}
+
+	addControlFlow(start,end, name) {
+		this.controlFlowStack.push({
+			index: startIndex,
+			start,
+			end,
+			name,
+		});
+		// Always sort it
+		this.controlFlowStack.sort((a, b) => a.index - b.index);
+	}
+	
+	findControlFlow(index, name) {
+		
 	}
 
 	/**
@@ -94,6 +116,7 @@ export class DebugState {
 	 * @final
 	 */
 	addStep(index, name = "", functionName = "") {
+		
 		this.currentFile.stack.push({
 			type: "Step",
 			index,
@@ -270,23 +293,27 @@ export async function patch(a, steps, loader, debugState) {
 		}
 		return;
 	}
+	const stepMachine = new StepMachine(steps);
 	const state = {
 		currentValue: a,
 		stack: [],
-		stepMachine: new StepMachine(steps),
+		stepMachine: SafeStepMachine(stepMachine),
 		cloneMap: new Map(),
 		loader: loader,
 		debugState: debugState,
 		debug: false,
 		memory: {}, 
-		functionName: "",		
-		stepReferenceIndex: 0,
 	};
 
-	for (const [absoluteStepIndex, step] of state.stepMachine.run()) {
+	// Base context
+	state.stepMachine.pushContext({
+		name: "",
+		offset: 0
+	});
+
+	for (const [stepIndex, step, functionName] of stepMachine.run()) {
 		try {
-			const stepIndex = absoluteStepIndex - state.stepReferenceIndex;
-			debugState.addStep(stepIndex, "", state.functionName);
+			debugState.addStep(stepIndex, "", functionName);
 			await applyStep(step, state, debugState);
 			debugState.removeLastStep();
 		} catch(e) {
@@ -597,4 +624,35 @@ appliers["MERGE_CONTENT"] = async function (state) {
 
 // Is a NOP step used to refer to code.
 appliers["LABEL"] = async function(state) {}
+
+appliers["JUMP_TO_LABEL"] = async function(state) {
+	if (!("label" in this)) {
+		state.debugState.throwError("ValueError", 'label must be set');
+	}
+
+	const label = this["label"];
+	const sm = state.stepMachine;
+	const labelIndex = sm.findLabelIndex(label);
+
+	if (labelIndex == -1) {
+		state.debugState.throwError("ValueError", `label ${label} does not exist.`);
+	}
+	sm.setStepIndex(labelIndex);
+}
+
+appliers["JUMP"] = async function(state) {
+	if (isNaN(this["offset"])) {
+		state.debugState.throwError("ValueError", 'ofset must be a number');
+	}
+	let offset = Math.trunc(this["offset"]);
+	const sm = state.stepMachine;
+	if (this["absolute"] == false) {
+		offset += sm.getStepIndex();
+	}
+	sm.setStepIndex(offset);
+}
+
+appliers["END"] = async function(state) {
+	state.stepMachine.exit();
+}
 
